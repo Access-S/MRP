@@ -19,6 +19,8 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
   Cog6ToothIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
 } from "@heroicons/react/24/outline";
 import { useTheme } from "../../contexts/ThemeContext";
 import { CreatePoForm } from "../forms/CreatePoForm";
@@ -72,7 +74,6 @@ const PoDetailsRow = ({
     (c) => c.partType === "Bulk - Supplied"
   );
   const unitsPerShipper = bulkComponent?.perShipper || "N/A";
-
   const DetailItem = ({
     label,
     value,
@@ -92,36 +93,14 @@ const PoDetailsRow = ({
       </Typography>
     </div>
   );
-
   const isDespatched = po.status.includes("Despatched/ Completed");
-
   return (
     <tr>
       <td colSpan={TABLE_HEAD.length} className="p-0">
         <Collapse open={isVisible}>
-          {/* Use a single grid layout that adapts */}
-          <div
-            className={`p-6 grid grid-cols-5 md:grid-cols-7 gap-y-4 gap-x-8 ${subRowClass}`}
-          >
-            {/* --- ALWAYS VISIBLE DETAILS --- */}
-            <DetailItem label="Customer" value={po.customerName} />
-            <DetailItem
-              label="Created Date"
-              value={formatDate(po.poCreatedDate)}
-            />
-            <DetailItem
-              label="Received Date"
-              value={formatDate(po.poReceivedDate)}
-            />
-            <DetailItem label="Units / Shipper" value={unitsPerShipper} />
-            <DetailItem
-              label="Qty (Pieces)"
-              value={po.orderedQtyPieces.toLocaleString()}
-            />
-
-            {/* --- CONDITIONALLY VISIBLE DELIVERY DETAILS --- */}
-            {isDespatched && (
-              <>
+          <div className={`p-6 ${subRowClass}`}>
+            {isDespatched ? (
+              <div className="flex flex-row items-start justify-around">
                 <DetailItem
                   label="Delivery Date"
                   value={formatDate(po.deliveryDate!)}
@@ -130,7 +109,24 @@ const PoDetailsRow = ({
                   label="Delivery Docket #"
                   value={po.deliveryDocketNumber}
                 />
-              </>
+              </div>
+            ) : (
+              <div className="grid grid-cols-5 gap-y-4 gap-x-8">
+                <DetailItem label="Customer" value={po.customerName} />
+                <DetailItem
+                  label="Created Date"
+                  value={formatDate(po.poCreatedDate)}
+                />
+                <DetailItem
+                  label="Received Date"
+                  value={formatDate(po.poReceivedDate)}
+                />
+                <DetailItem label="Units / Shipper" value={unitsPerShipper} />
+                <DetailItem
+                  label="Qty (Pieces)"
+                  value={po.orderedQtyPieces.toLocaleString()}
+                />
+              </div>
             )}
           </div>
         </Collapse>
@@ -148,7 +144,7 @@ export function PurchaseOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [openRow, setOpenRow] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [poToEdit, setPoToEdit] = useState<PurchaseOrder | null>(null);
@@ -179,34 +175,30 @@ export function PurchaseOrdersPage() {
   };
   const handleRowToggle = (poId: string) =>
     setOpenRow(openRow === poId ? null : poId);
+  const handleSort = () =>
+    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
       const products = await getAllProducts();
       setAllProducts(products);
-      const fetchedPOs = await getAllPurchaseOrders(products);
+      const fetchedPOs = await getAllPurchaseOrders(products, sortDirection);
       setPurchaseOrders(fetchedPOs);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Could not load purchase orders.");
+    } finally {
       setLoading(false);
-    };
-    fetchData();
-  }, []);
+    }
+  };
 
-  const handlePoCreated = (newPoFromForm: PurchaseOrder) => {
-    const productDetails = allProducts.find(
-      (p) => p.productCode === newPoFromForm.productCode
-    );
-    const enrichedNewPo: PurchaseOrder = {
-      ...newPoFromForm,
-      description: productDetails?.description || "N/A",
-      minsPerShipper: productDetails?.minsPerShipper || 0,
-      components: productDetails?.components || [],
-    };
-    setPurchaseOrders((prevPOs) =>
-      [enrichedNewPo, ...prevPOs].sort(
-        (a, b) => b.poReceivedDate.getTime() - a.poReceivedDate.getTime()
-      )
-    );
+  useEffect(() => {
+    fetchData();
+  }, [sortDirection]);
+
+  const handlePoCreated = () => {
+    fetchData();
   };
 
   const handlePoUpdate = (updatedPoData: Partial<PurchaseOrder>) => {
@@ -222,16 +214,22 @@ export function PurchaseOrdersPage() {
       handleOpenDespatchForm(po);
       return;
     }
+
+    const toastId = toast.loading("Updating status...");
     try {
+      // Let the service do the work and tell us what the new state is
       const newStatusArray = await updatePoStatus(
         po.id,
         newStatus as PoStatus,
         po.status
       );
+
+      // Update the UI with the exact new state from the service
       handlePoUpdate({ id: po.id, status: newStatusArray });
-    } catch (err) {
-      console.error("Error updating PO status:", err);
-      toast.error("Failed to update PO status");
+
+      toast.success("Status updated!", { id: toastId });
+    } catch (error) {
+      toast.error("Failed to update status.", { id: toastId });
     }
   };
 
@@ -240,7 +238,7 @@ export function PurchaseOrdersPage() {
     docketNumber: string
   ) => {
     if (!poToDespatch) return;
-    const loadingToast = toast.loading("Despatching PO...");
+    const toastId = toast.loading("Despatching PO...");
     try {
       await despatchPo(poToDespatch.id, deliveryDate, docketNumber);
       handlePoUpdate({
@@ -249,18 +247,16 @@ export function PurchaseOrdersPage() {
         deliveryDate: new Date(deliveryDate),
         deliveryDocketNumber: docketNumber,
       });
-      toast.dismiss(loadingToast);
-      toast.success("PO despatched successfully!");
-    } catch (err) {
-      toast.dismiss(loadingToast);
-      console.error("Error despatching PO:", err);
+      toast.success("PO despatched successfully!", { id: toastId });
+    } catch (error) {
+      toast.dismiss(toastId);
       toast.error("Failed to despatch PO.");
     }
   };
 
   const handleConfirmReopen = async () => {
     if (!poToReopen) return;
-    const loadingToast = toast.loading("Re-opening PO...");
+    const toastId = toast.loading("Re-opening PO...");
     try {
       await reopenDespatchedPo(poToReopen.id);
       handlePoUpdate({
@@ -269,28 +265,26 @@ export function PurchaseOrdersPage() {
         deliveryDate: undefined,
         deliveryDocketNumber: undefined,
       });
-      toast.dismiss(loadingToast);
-      toast.success("PO re-opened successfully!");
-    } catch (err) {
-      toast.dismiss(loadingToast);
-      console.error("Error re-opening PO:", err);
+      toast.success("PO re-opened successfully!", { id: toastId });
+    } catch (error) {
+      toast.dismiss(toastId);
       toast.error("Failed to re-open PO.");
     }
   };
 
   const handleConfirmDelete = async () => {
     if (!poToDelete) return;
-    const loadingToast = toast.loading("Deleting PO...");
+    const toastId = toast.loading("Deleting PO...");
     try {
       await deletePurchaseOrder(poToDelete.id);
       setPurchaseOrders((prevPOs) =>
         prevPOs.filter((po) => po.id !== poToDelete.id)
       );
-      toast.dismiss(loadingToast);
-      toast.success(`PO ${poToDelete.poNumber} deleted successfully.`);
-    } catch (err) {
-      toast.dismiss(loadingToast);
-      console.error("Error deleting PO:", err);
+      toast.success(`PO ${poToDelete.poNumber} deleted successfully.`, {
+        id: toastId,
+      });
+    } catch (error) {
+      toast.dismiss(toastId);
       toast.error("Failed to delete PO.");
     }
   };
@@ -320,7 +314,7 @@ export function PurchaseOrdersPage() {
   if (!loading && !Array.isArray(purchaseOrders)) {
     return (
       <Typography color="red" className="p-8">
-        Error: Purchase order data could not be loaded.
+        Error: Data could not be loaded.
       </Typography>
     );
   }
@@ -328,6 +322,7 @@ export function PurchaseOrdersPage() {
   return (
     <>
       <Card className={`w-full ${theme.cards} shadow-sm`}>
+        {/* --- CORRECTED HEADER --- */}
         <div
           className={`flex items-center justify-between p-4 border-b ${theme.borderColor}`}
         >
@@ -342,7 +337,30 @@ export function PurchaseOrdersPage() {
               Manage all incoming customer orders.
             </Typography>
           </div>
-          <div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="text"
+              className="flex items-center gap-2"
+              onClick={handleSort}
+            >
+              {sortDirection === "desc" ? (
+                <ArrowDownIcon
+                  strokeWidth={2}
+                  className={`h-4 w-4 ${theme.text}`}
+                />
+              ) : (
+                <ArrowUpIcon
+                  strokeWidth={2}
+                  className={`h-4 w-4 ${theme.text}`}
+                />
+              )}
+              <Typography
+                variant="small"
+                className={`font-normal ${theme.text}`}
+              >
+                Sort by {sortDirection === "desc" ? "Newest" : "Oldest"}
+              </Typography>
+            </Button>
             <Button
               onClick={handleOpenCreateForm}
               className="flex items-center gap-3"
@@ -372,23 +390,19 @@ export function PurchaseOrdersPage() {
             <table className="w-full min-w-max table-auto text-left">
               <thead>
                 <tr>
-                  {TABLE_HEAD.map((head) => {
-                    const alignmentClass =
-                      head === "Description" ? "text-left" : "text-center";
-                    return (
-                      <th
-                        key={head}
-                        className={`border-b-2 ${theme.borderColor} ${theme.tableHeaderBg} p-4 ${alignmentClass}`}
+                  {TABLE_HEAD.map((head) => (
+                    <th
+                      key={head}
+                      className={`border-b-2 ${theme.borderColor} ${theme.tableHeaderBg} p-4 text-center`}
+                    >
+                      <Typography
+                        variant="small"
+                        className={`font-semibold leading-none ${theme.text}`}
                       >
-                        <Typography
-                          variant="small"
-                          className={`font-semibold leading-none ${theme.text}`}
-                        >
-                          {head}
-                        </Typography>
-                      </th>
-                    );
-                  })}
+                        {head}
+                      </Typography>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -496,6 +510,7 @@ export function PurchaseOrdersPage() {
                             {productionTimeHours.toFixed(2)}
                           </Typography>
                         </td>
+                        {/* --- THIS IS THE CORRECTED STATUS CELL --- */}
                         <td
                           className={`p-4 border-b ${theme.borderColor} text-center max-w-xs`}
                         >
@@ -503,12 +518,14 @@ export function PurchaseOrdersPage() {
                             <MenuHandler>
                               <div
                                 className="flex flex-wrap justify-center gap-1 cursor-pointer"
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}
                               >
                                 {statuses.map((s) => (
                                   <Chip
                                     key={s}
-                                    variant="ghost"
+                                    variant="ghost" // Restored "ghost" variant
                                     size="sm"
                                     value={s}
                                     color={
@@ -616,25 +633,19 @@ export function PurchaseOrdersPage() {
         handleOpen={() => handleOpenDespatchForm(null)}
         onSubmit={handleConfirmDespatch}
       />
-
       <ConfirmationDialog
         open={isReopenConfirmOpen}
         handleOpen={() => handleOpenReopenConfirm(null)}
         onConfirm={handleConfirmReopen}
         title="Re-open Despatched PO?"
-        message="Warning: This PO is already despatched. Re-opening it will revert its status to 'Open' and clear the delivery details. This action should only be done to correct a mistake. Are you sure you want to proceed?"
-        confirmText="Yes, Re-open PO"
-        confirmColor="orange"
+        message="..."
       />
-
       <ConfirmationDialog
         open={isDeleteConfirmOpen}
         handleOpen={() => handleOpenDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
         title="Delete Purchase Order?"
-        message={`Are you sure you want to permanently delete PO #${poToDelete?.poNumber}? This action cannot be undone.`}
-        confirmText="Yes, Delete PO"
-        confirmColor="red"
+        message="..."
       />
     </>
   );

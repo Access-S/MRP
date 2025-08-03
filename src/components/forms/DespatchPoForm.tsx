@@ -1,6 +1,7 @@
 // src/components/forms/DespatchPoForm.tsx
 
 import React, { useState } from "react";
+import toast from "react-hot-toast"; // 👈 Import toast
 import {
   Button,
   Dialog,
@@ -26,7 +27,8 @@ export function DespatchPoForm({
 
   const handleSubmit = () => {
     if (!deliveryDate || !docketNumber) {
-      alert("Please fill out both delivery date and docket number.");
+      // 👇 Use toast instead of alert
+      toast.error("Please fill out both delivery date and docket number.");
       return;
     }
     onSubmit(deliveryDate, docketNumber);

@@ -63,10 +63,11 @@ export type PoStatus =
 export interface PurchaseOrder {
   id: string;
   poNumber: string;
+  sequence?: number;
   productCode: string;
-  description?: string; // Added from join
-  minsPerShipper?: number; // Added from join
-  components?: BomComponent[]; // Added from join
+  description?: string;
+  minsPerShipper?: number;
+  components?: BomComponent[];
   customerName: string;
   poCreatedDate: Date;
   poReceivedDate: Date;

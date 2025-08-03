@@ -1,9 +1,5 @@
 // BLOCK 1: Imports
-import {
-  Product,
-  Forecast,
-  Component,
-} from "../types/mrp.types";
+import { Product, Forecast, Component } from "../types/mrp.types";
 
 // BLOCK 2: Interface for the Engine's Output
 export interface MonthlyProjection {
@@ -29,7 +25,6 @@ export const calculateInventoryProjections = (
   products: Product[],
   forecasts: Forecast[]
 ): InventoryProjection[] => {
-  // This is the full, correct type definition for the Map
   const componentMasterMap = new Map<
     string,
     {
@@ -47,6 +42,12 @@ export const calculateInventoryProjections = (
     );
     if (!forecast) return;
 
+    // --- THIS IS THE FIX ---
+    // We use the product-level `unitsPerShipper` for all calculations in this loop.
+    const unitsPerShipper = product.unitsPerShipper || 0;
+    if (unitsPerShipper === 0) return; // Cannot calculate demand if this is zero
+    // --- END OF FIX ---
+
     product.components.forEach((bomItem) => {
       if (bomItem.partType === "Bulk - Supplied") return;
       if (!componentMasterMap.has(bomItem.partCode)) {
@@ -63,9 +64,15 @@ export const calculateInventoryProjections = (
       componentData.descriptions.add(bomItem.partDescription);
 
       for (const month in forecast.monthlyForecast) {
-        const required = forecast.monthlyForecast[month] * bomItem.perShipper;
+        // --- THIS IS THE FIX ---
+        // The forecast is for PRODUCTS (shippers), not pieces.
+        // We need to find how many components are needed per PRODUCT.
+        const forecastQtyInShippers = forecast.monthlyForecast[month];
+        const requiredComponents = forecastQtyInShippers * bomItem.perShipper;
+        // --- END OF FIX ---
+
         componentData.demand[month] =
-          (componentData.demand[month] || 0) + required;
+          (componentData.demand[month] || 0) + requiredComponents;
       }
     });
   });

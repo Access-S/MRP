@@ -17,7 +17,9 @@ export type Page =
   | "purchase-orders"
   | "inventory"
   | "forecasts"
-  | "soh";
+  | "soh"
+  | "analytics"
+  | "reporting";
 
 // BLOCK 3: AppLayout Component (Full-Width)
 function AppLayout() {

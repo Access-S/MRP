@@ -1,5 +1,4 @@
-// src/components/pages/ProductsPage.tsx
-
+// BLOCK 1: Imports
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Card,
@@ -14,7 +13,7 @@ import { getAllProducts } from "../../services/product.service";
 import { useTheme } from "../../contexts/ThemeContext";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
-// BOM Details Row Component
+// BLOCK 2: BomDetailsRow Component
 const BomDetailsRow = ({
   components,
   isVisible,
@@ -29,7 +28,8 @@ const BomDetailsRow = ({
 
   return (
     <tr>
-      <td colSpan={TABLE_HEAD.length} className="p-0">
+      {/* Adjusted colSpan to 4 to match the main table */}
+      <td colSpan={4} className="p-0">
         <Collapse open={isVisible}>
           <div className={`p-4 ${subRowClass}`}>
             <Typography variant="h6" className={`mb-2 ${theme.text}`}>
@@ -125,8 +125,7 @@ const BomDetailsRow = ({
   );
 };
 
-const TABLE_HEAD = ["Product Code", "Description", "Hourly Rate", "Components"];
-
+// BLOCK 3: Main ProductsPage Component
 export function ProductsPage() {
   const { theme } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
@@ -134,7 +133,12 @@ export function ProductsPage() {
   const [openRow, setOpenRow] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const TABLE_HEAD = ["Product Code", "Description", "Hourly Run Rate", "Components"];
+  const TABLE_HEAD = [
+    "Product Code",
+    "Description",
+    "Hourly Run Rate",
+    "Components",
+  ];
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -180,7 +184,6 @@ export function ProductsPage() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           color={theme.isDark ? "white" : "black"}
-          className="!text-base"
         />
       </div>
 
@@ -197,7 +200,10 @@ export function ProductsPage() {
                 const borderClass = isLast
                   ? ""
                   : `border-r ${theme.borderColor}`;
-                const alignmentClass = head === "Hourly Run Rate" ? "text-right" : "text-left";
+                const alignmentClass =
+                  head === "Hourly Run Rate" || head === "Components"
+                    ? "text-center"
+                    : "text-left";
                 return (
                   <th
                     key={head}
@@ -225,12 +231,8 @@ export function ProductsPage() {
                 hourlyRunRate,
               } = product;
               const isRowOpen = openRow === id;
-
               const openRowBgClass = theme.activeRowBg;
-              const hoverBgClass =
-                theme.hoverBg ||
-                (theme.isDark ? "hover:bg-gray-700" : "hover:bg-blue-50");
-              const rowBaseClass = `p-4 border-b ${theme.borderColor} text-center`;
+              const hoverBgClass = theme.hoverBg;
 
               return (
                 <React.Fragment key={id}>
@@ -240,7 +242,9 @@ export function ProductsPage() {
                     }`}
                     onClick={() => handleRowToggle(id)}
                   >
-                    <td className={`${rowBaseClass} rounded-l-lg`}>
+                    <td
+                      className={`p-4 border-b ${theme.borderColor} text-left rounded-l-lg`}
+                    >
                       <Typography
                         variant="small"
                         className={`font-bold ${theme.text}`}
@@ -248,15 +252,19 @@ export function ProductsPage() {
                         {productCode}
                       </Typography>
                     </td>
-                    <td className={rowBaseClass}>
+                    <td
+                      className={`p-4 border-b ${theme.borderColor} text-left`}
+                    >
                       <Typography
                         variant="small"
-                        className={`font-normal ${theme.text} text-left`}
+                        className={`font-normal ${theme.text}`}
                       >
                         {description}
                       </Typography>
                     </td>
-                    <td className={rowBaseClass}>
+                    <td
+                      className={`p-4 border-b ${theme.borderColor} text-right`}
+                    >
                       <Typography
                         variant="small"
                         className={`font-normal ${theme.text}`}
@@ -264,7 +272,9 @@ export function ProductsPage() {
                         {hourlyRunRate ? hourlyRunRate.toFixed(2) : "N/A"}
                       </Typography>
                     </td>
-                    <td className={`${rowBaseClass} rounded-r-lg`}>
+                    <td
+                      className={`p-4 border-b ${theme.borderColor} text-center rounded-r-lg`}
+                    >
                       <div className="flex items-center justify-center gap-1">
                         <span
                           className={`inline-block w-2.5 h-2.5 ${

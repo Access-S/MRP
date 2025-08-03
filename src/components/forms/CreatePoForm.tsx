@@ -1,5 +1,6 @@
 // BLOCK 1: Imports
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import {
   Button,
   Dialog,
@@ -10,7 +11,7 @@ import {
   Typography,
   Collapse,
 } from "@material-tailwind/react";
-import { Product, PoStatus } from "../../types/mrp.types";
+import { Product, PoStatus, PurchaseOrder } from "../../types/mrp.types";
 import { getAllProducts } from "../../services/product.service";
 import {
   checkPoNumberExists,
@@ -18,13 +19,10 @@ import {
 } from "../../services/purchaseOrder.service";
 
 // BLOCK 2: Interface and Component Definition
-import toast from "react-hot-toast"; // 👈 Import toast
-import { PurchaseOrder } from "../../types/mrp.types"; // 👈 Import PurchaseOrder
-
 interface CreatePoFormProps {
   open: boolean;
   handleOpen: () => void;
-  onPoCreated: (newPo: PurchaseOrder) => void; // 👈 Add the new prop
+  onPoCreated: (newPo: PurchaseOrder) => void;
 }
 
 export function CreatePoForm({
@@ -38,7 +36,7 @@ export function CreatePoForm({
   // Form State
   const [poNumber, setPoNumber] = useState("");
   const [productCode, setProductCode] = useState("");
-  const [customerName, setCustomerName] = useState(""); // Add customerName state
+  const [customerName, setCustomerName] = useState("");
   const [poCreatedDate, setPoCreatedDate] = useState("");
   const [poReceivedDate, setPoReceivedDate] = useState("");
   const [orderedQtyPieces, setOrderedQtyPieces] = useState<number | string>("");
@@ -90,14 +88,11 @@ export function CreatePoForm({
 
     setProductCodeStatus("valid");
 
-    // --- THIS IS THE CORRECTED LOGIC ---
-    const unitsPerShipper = product.unitsPerShipper || 0; // Safely access the typed property
+    const unitsPerShipper = product.unitsPerShipper || 0;
     const pricePerShipper = product.pricePerShipper || 0;
     const pieces = Number(orderedQtyPieces) || 0;
-
     const shippers = unitsPerShipper > 0 ? pieces / unitsPerShipper : 0;
     const calculatedSystemAmount = shippers * pricePerShipper;
-    // --- END OF CORRECTION ---
 
     setCalculatedShippers(shippers);
     setSystemAmount(calculatedSystemAmount);
@@ -131,7 +126,7 @@ export function CreatePoForm({
       String(orderedQtyPieces).trim() === "" ||
       String(customerAmount).trim() === ""
     ) {
-      alert("Please ensure all required fields are filled out.");
+      toast.error("Please ensure all required fields are filled out.");
       return;
     }
 
@@ -160,24 +155,24 @@ export function CreatePoForm({
     try {
       const newPoId = await createNewPurchaseOrder(poData as any);
 
-      // Create the full new PO object to send back to the parent page
       const newPoForState: PurchaseOrder = {
         id: newPoId,
         ...poData,
-        // We need to convert string dates to Date objects for our local state
+        sequence: Date.now(), // Use timestamp as a temporary unique key for sorting
         poCreatedDate: new Date(poData.poCreatedDate),
         poReceivedDate: new Date(poData.poReceivedDate),
-        requestedDeliveryDate: new Date(poData.poReceivedDate), // Use received date as default
+        requestedDeliveryDate: new Date(poData.poReceivedDate), // Default to received date
         status: [finalStatus],
       };
 
-      onPoCreated(newPoForState); // 👈 Call the new prop to update the parent's state
+      onPoCreated(newPoForState);
 
-      toast.dismiss(loadingToast); // Dismiss loading toast
-      toast.success(`PO ${poData.poNumber} created successfully!`); // Show success toast
+      toast.dismiss(loadingToast);
+      toast.success(`PO ${poData.poNumber} created successfully!`);
       resetForm();
       handleOpen();
     } catch (err) {
+      toast.dismiss(loadingToast);
       console.error("Error creating PO:", err);
       toast.error("Failed to create PO. Please try again.");
     }
@@ -185,34 +180,9 @@ export function CreatePoForm({
 
   // BLOCK 6: Render Logic
   return (
-    <Dialog 
-      open={open} 
-      handler={handleOpen} 
-      size="md"
-      placeholder=""
-      onResize={() => {}}
-      onResizeCapture={() => {}}
-      onPointerEnterCapture={() => {}}
-      onPointerLeaveCapture={() => {}}
-    >
-      <DialogHeader
-        placeholder=""
-        onResize={() => {}}
-        onResizeCapture={() => {}}
-        onPointerEnterCapture={() => {}}
-        onPointerLeaveCapture={() => {}}
-      >
-        Create New Purchase Order
-      </DialogHeader>
-      <DialogBody 
-        divider 
-        className="flex flex-col gap-4"
-        placeholder=""
-        onResize={() => {}}
-        onResizeCapture={() => {}}
-        onPointerEnterCapture={() => {}}
-        onPointerLeaveCapture={() => {}}
-      >
+    <Dialog open={open} handler={handleOpen} size="md">
+      <DialogHeader>Create New Purchase Order</DialogHeader>
+      <DialogBody divider className="flex flex-col gap-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Input
@@ -220,51 +190,19 @@ export function CreatePoForm({
               value={poNumber}
               onChange={(e) => setPoNumber(e.target.value)}
               required
-              onResize={() => {}}
-              onResizeCapture={() => {}}
-              onPointerEnterCapture={() => {}}
-              onPointerLeaveCapture={() => {}}
-              crossOrigin=""
             />
             {poNumberStatus === "checking" && (
-              <Typography 
-                variant="small" 
-                color="blue" 
-                className="mt-1"
-                placeholder=""
-                onResize={() => {}}
-                onResizeCapture={() => {}}
-                onPointerEnterCapture={() => {}}
-                onPointerLeaveCapture={() => {}}
-              >
+              <Typography variant="small" color="blue" className="mt-1">
                 Checking...
               </Typography>
             )}
             {poNumberStatus === "valid" && (
-              <Typography 
-                variant="small" 
-                color="green" 
-                className="mt-1"
-                placeholder=""
-                onResize={() => {}}
-                onResizeCapture={() => {}}
-                onPointerEnterCapture={() => {}}
-                onPointerLeaveCapture={() => {}}
-              >
+              <Typography variant="small" color="green" className="mt-1">
                 PO Number is available.
               </Typography>
             )}
             {poNumberStatus === "invalid" && (
-              <Typography 
-                variant="small" 
-                color="red" 
-                className="mt-1"
-                placeholder=""
-                onResize={() => {}}
-                onResizeCapture={() => {}}
-                onPointerEnterCapture={() => {}}
-                onPointerLeaveCapture={() => {}}
-              >
+              <Typography variant="small" color="red" className="mt-1">
                 This PO Number already exists.
               </Typography>
             )}
@@ -276,23 +214,9 @@ export function CreatePoForm({
               onChange={(e) => setProductCode(e.target.value)}
               required
               list="product-codes"
-              onResize={() => {}}
-              onResizeCapture={() => {}}
-              onPointerEnterCapture={() => {}}
-              onPointerLeaveCapture={() => {}}
-              crossOrigin=""
             />
             {productCodeStatus === "invalid" && (
-              <Typography 
-                variant="small" 
-                color="red" 
-                className="mt-1"
-                placeholder=""
-                onResize={() => {}}
-                onResizeCapture={() => {}}
-                onPointerEnterCapture={() => {}}
-                onPointerLeaveCapture={() => {}}
-              >
+              <Typography variant="small" color="red" className="mt-1">
                 Product code not found in BOM.
               </Typography>
             )}
@@ -304,11 +228,6 @@ export function CreatePoForm({
           value={customerName}
           onChange={(e) => setCustomerName(e.target.value)}
           required
-          onResize={() => {}}
-          onResizeCapture={() => {}}
-          onPointerEnterCapture={() => {}}
-          onPointerLeaveCapture={() => {}}
-          crossOrigin=""
         />
 
         <datalist id="product-codes">
@@ -324,11 +243,6 @@ export function CreatePoForm({
             value={poCreatedDate}
             onChange={(e) => setPoCreatedDate(e.target.value)}
             required
-            onResize={() => {}}
-            onResizeCapture={() => {}}
-            onPointerEnterCapture={() => {}}
-            onPointerLeaveCapture={() => {}}
-            crossOrigin=""
           />
           <Input
             type="date"
@@ -336,11 +250,6 @@ export function CreatePoForm({
             value={poReceivedDate}
             onChange={(e) => setPoReceivedDate(e.target.value)}
             required
-            onResize={() => {}}
-            onResizeCapture={() => {}}
-            onPointerEnterCapture={() => {}}
-            onPointerLeaveCapture={() => {}}
-            crossOrigin=""
           />
         </div>
 
@@ -351,11 +260,6 @@ export function CreatePoForm({
             value={orderedQtyPieces}
             onChange={(e) => setOrderedQtyPieces(e.target.value)}
             required
-            onResize={() => {}}
-            onResizeCapture={() => {}}
-            onPointerEnterCapture={() => {}}
-            onPointerLeaveCapture={() => {}}
-            crossOrigin=""
           />
           <Input
             type="number"
@@ -363,26 +267,12 @@ export function CreatePoForm({
             value={customerAmount}
             onChange={(e) => setCustomerAmount(e.target.value)}
             required
-            onResize={() => {}}
-            onResizeCapture={() => {}}
-            onPointerEnterCapture={() => {}}
-            onPointerLeaveCapture={() => {}}
-            crossOrigin=""
           />
         </div>
 
         <Collapse open={productCodeStatus === "valid"}>
           <div className="p-3 bg-gray-50 rounded-lg border text-sm space-y-2">
-            <Typography 
-              variant="h6"
-              placeholder=""
-              onResize={() => {}}
-              onResizeCapture={() => {}}
-              onPointerEnterCapture={() => {}}
-              onPointerLeaveCapture={() => {}}
-            >
-              System Calculation
-            </Typography>
+            <Typography variant="h6">System Calculation</Typography>
             <div className="flex justify-between">
               <span>Shipper Quantity:</span>
               <span className="font-semibold">
@@ -410,23 +300,8 @@ export function CreatePoForm({
           </div>
         </Collapse>
       </DialogBody>
-      <DialogFooter
-        placeholder=""
-        onResize={() => {}}
-        onResizeCapture={() => {}}
-        onPointerEnterCapture={() => {}}
-        onPointerLeaveCapture={() => {}}
-      >
-        <Button 
-          variant="text" 
-          color="red" 
-          onClick={handleOpen}
-          placeholder=""
-          onResize={() => {}}
-          onResizeCapture={() => {}}
-          onPointerEnterCapture={() => {}}
-          onPointerLeaveCapture={() => {}}
-        >
+      <DialogFooter>
+        <Button variant="text" color="red" onClick={handleOpen}>
           Cancel
         </Button>
         <Button
@@ -434,11 +309,6 @@ export function CreatePoForm({
           color="green"
           onClick={handleSubmit}
           disabled={poNumberStatus !== "valid" || productCodeStatus !== "valid"}
-          placeholder=""
-          onResize={() => {}}
-          onResizeCapture={() => {}}
-          onPointerEnterCapture={() => {}}
-          onPointerLeaveCapture={() => {}}
         >
           Submit PO
         </Button>

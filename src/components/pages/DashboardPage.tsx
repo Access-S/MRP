@@ -48,9 +48,7 @@ export function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
-      // First fetch all products
       const allProducts = await getAllProducts();
-      // Then pass them to the stats function
       const fetchedStats = await getDashboardStats(allProducts);
       setStats(fetchedStats);
       setLoading(false);
@@ -58,7 +56,6 @@ export function DashboardPage() {
     fetchStats();
   }, []);
 
-  // Format currency for display
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -68,7 +65,7 @@ export function DashboardPage() {
 
   return (
     <>
-      {/* Welcome Card (Unchanged) */}
+      {/* Welcome Card */}
       <Card className={`${theme.cards} rounded-lg shadow-sm p-6 mb-6`}>
         <Typography variant="h5" className={`${theme.text} mb-1`}>
           Welcome to your MRP Dashboard
@@ -79,10 +76,34 @@ export function DashboardPage() {
         </Typography>
       </Card>
 
-      {/* Feature Cards (Unchanged) */}
+      {/* --- THIS IS THE RESTORED CONTENT --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {/* ... */}
+        <Card className={`${theme.cards} p-6`}>
+          <Typography variant="h6" className={theme.text}>
+            Analytics
+          </Typography>
+          <Typography className={`${theme.text} opacity-70 text-sm mt-1`}>
+            View detailed reports and performance metrics.
+          </Typography>
+        </Card>
+        <Card className={`${theme.cards} p-6`}>
+          <Typography variant="h6" className={theme.text}>
+            Planning
+          </Typography>
+          <Typography className={`${theme.text} opacity-70 text-sm mt-1`}>
+            Access the main inventory planning dashboard.
+          </Typography>
+        </Card>
+        <Card className={`${theme.cards} p-6`}>
+          <Typography variant="h6" className={theme.text}>
+            Data Management
+          </Typography>
+          <Typography className={`${theme.text} opacity-70 text-sm mt-1`}>
+            Import and manage system data like forecasts and SOH.
+          </Typography>
+        </Card>
       </div>
+      {/* --- END OF RESTORED CONTENT --- */}
 
       {/* Stats Grid (Updated) */}
       {loading || !stats ? (

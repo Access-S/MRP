@@ -30,6 +30,8 @@ import {
   ServerStackIcon,
   ChartBarSquareIcon,
   ClipboardDocumentListIcon,
+  ChartPieIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { useTheme } from "../contexts/ThemeContext";
 import { themes } from "../styles/themes";
@@ -98,6 +100,7 @@ export function Sidebar({
             {/* BLOCK 5: Main Menu Items */}
             <div className="flex-1">
               <List className={theme.sidebarText}>
+                {/* Dashboard Link */}
                 <ListItem
                   onClick={() => {
                     setActivePage("dashboard");
@@ -117,44 +120,135 @@ export function Sidebar({
                   </Typography>
                 </ListItem>
 
-                <ListItem
-                  onClick={() => {
-                    setActivePage("purchase-orders");
-                    closeDrawer();
-                  }}
-                  selected={activePage === "purchase-orders"}
-                >
-                  <ListItemPrefix>
-                    <ShoppingBagIcon
-                      className={`h-5 w-5 ${theme.sidebarText}`}
+                {/* Operations Accordion */}
+                <Accordion
+                  open={open === "operations"}
+                  icon={
+                    <ChevronDownIcon
+                      strokeWidth={2.5}
+                      className={`mx-auto h-4 w-4 transition-transform ${
+                        open === "operations" ? "rotate-180" : ""
+                      }`}
                     />
-                  </ListItemPrefix>
-                  <Typography
-                    className={`mr-auto font-normal ${theme.sidebarText}`}
-                  >
-                    Purchase Orders
-                  </Typography>
-                </ListItem>
-
-                <ListItem
-                  onClick={() => {
-                    setActivePage("inventory");
-                    closeDrawer();
-                  }}
-                  selected={activePage === "inventory"}
+                  }
                 >
-                  <ListItemPrefix>
-                    <ArchiveBoxIcon
-                      className={`h-5 w-5 ${theme.sidebarText}`}
-                    />
-                  </ListItemPrefix>
-                  <Typography
-                    className={`mr-auto font-normal ${theme.sidebarText}`}
-                  >
-                    Inventory
-                  </Typography>
-                </ListItem>
+                  <ListItem className="p-0" selected={open === "operations"}>
+                    <AccordionHeader
+                      onClick={() => handleOpen("operations")}
+                      className="border-b-0 p-3"
+                    >
+                      <ListItemPrefix>
+                        <Cog6ToothIcon
+                          className={`h-5 w-5 ${theme.sidebarText}`}
+                        />
+                      </ListItemPrefix>
+                      <Typography
+                        className={`mr-auto font-normal ${theme.sidebarText}`}
+                      >
+                        Operations
+                      </Typography>
+                    </AccordionHeader>
+                  </ListItem>
+                  <AccordionBody className="py-1">
+                    <List className="p-0 pl-4">
+                      <ListItem
+                        onClick={() => {
+                          setActivePage("purchase-orders");
+                          closeDrawer();
+                        }}
+                        selected={activePage === "purchase-orders"}
+                      >
+                        <ListItemPrefix>
+                          <ShoppingBagIcon
+                            className={`h-4 w-4 ${theme.sidebarText}`}
+                          />
+                        </ListItemPrefix>
+                        Purchase Orders
+                      </ListItem>
+                      <ListItem
+                        onClick={() => {
+                          setActivePage("inventory");
+                          closeDrawer();
+                        }}
+                        selected={activePage === "inventory"}
+                      >
+                        <ListItemPrefix>
+                          <ArchiveBoxIcon
+                            className={`h-4 w-4 ${theme.sidebarText}`}
+                          />
+                        </ListItemPrefix>
+                        Inventory
+                      </ListItem>
+                    </List>
+                  </AccordionBody>
+                </Accordion>
 
+                {/* Insights & Reporting Accordion */}
+                <Accordion
+                  open={open === "insights"}
+                  icon={
+                    <ChevronDownIcon
+                      strokeWidth={2.5}
+                      className={`mx-auto h-4 w-4 transition-transform ${
+                        open === "insights" ? "rotate-180" : ""
+                      }`}
+                    />
+                  }
+                >
+                  <ListItem className="p-0" selected={open === "insights"}>
+                    <AccordionHeader
+                      onClick={() => handleOpen("insights")}
+                      className="border-b-0 p-3"
+                    >
+                      <ListItemPrefix>
+                        <ChartPieIcon
+                          className={`h-5 w-5 ${theme.sidebarText}`}
+                        />
+                      </ListItemPrefix>
+                      <Typography
+                        className={`mr-auto font-normal ${theme.sidebarText}`}
+                      >
+                        Insights & Reporting
+                      </Typography>
+                    </AccordionHeader>
+                  </ListItem>
+                  <AccordionBody className="py-1">
+                    <List className="p-0 pl-4">
+                      <ListItem
+                        onClick={() => {
+                          setActivePage("analytics");
+                          closeDrawer();
+                        }}
+                        selected={activePage === "analytics"}
+                        disabled
+                      >
+                        <ListItemPrefix>
+                          <ChartBarSquareIcon
+                            className={`h-4 w-4 ${theme.sidebarText}`}
+                          />
+                        </ListItemPrefix>
+                        Analytics
+                      </ListItem>
+                      <ListItem
+                        onClick={() => {
+                          setActivePage("reporting");
+                          closeDrawer();
+                        }}
+                        selected={activePage === "reporting"}
+                        disabled
+                      >
+                        <ListItemPrefix>
+                          <DocumentTextIcon
+                            className={`h-4 w-4 ${theme.sidebarText}`}
+                          />
+                        </ListItemPrefix>
+                        Reporting
+                      </ListItem>
+                    </List>
+                  </AccordionBody>
+                </Accordion>
+
+                {/* System Data Accordion */}
                 <Accordion
                   open={open === "system-data"}
                   icon={
@@ -191,16 +285,13 @@ export function Sidebar({
                           closeDrawer();
                         }}
                         selected={activePage === "products"}
-                        className={theme.sidebarText}
                       >
                         <ListItemPrefix>
                           <CubeIcon
                             className={`h-4 w-4 ${theme.sidebarText}`}
                           />
                         </ListItemPrefix>
-                        <Typography className={`mr-auto font-normal ${theme.sidebarText}`}>
-                          Products (BOM)
-                        </Typography>
+                        Products (BOM)
                       </ListItem>
                       <ListItem
                         onClick={() => {
@@ -208,16 +299,13 @@ export function Sidebar({
                           closeDrawer();
                         }}
                         selected={activePage === "forecasts"}
-                        className={theme.sidebarText}
                       >
                         <ListItemPrefix>
                           <ChartBarSquareIcon
                             className={`h-4 w-4 ${theme.sidebarText}`}
                           />
                         </ListItemPrefix>
-                        <Typography className={`mr-auto font-normal ${theme.sidebarText}`}>
-                          Forecasts
-                        </Typography>
+                        Forecasts
                       </ListItem>
                       <ListItem
                         onClick={() => {
@@ -225,16 +313,13 @@ export function Sidebar({
                           closeDrawer();
                         }}
                         selected={activePage === "soh"}
-                        className={theme.sidebarText}
                       >
                         <ListItemPrefix>
                           <ClipboardDocumentListIcon
                             className={`h-4 w-4 ${theme.sidebarText}`}
                           />
                         </ListItemPrefix>
-                        <Typography className={`mr-auto font-normal ${theme.sidebarText}`}>
-                          Stock on Hand
-                        </Typography>
+                        Stock on Hand
                       </ListItem>
                     </List>
                   </AccordionBody>

@@ -81,11 +81,11 @@ export function EditPoForm({
   // BLOCK 5: Handlers
   const handleSaveChanges = async () => {
     if (!po || !product) {
-      alert("Error: Missing PO or Product data.");
+      toast.error("Error: Missing PO or Product data.");
       return;
     }
-    const loadingToast = toast.loading("Saving changes...");
     setIsLoading(true);
+    const loadingToast = toast.loading("Saving changes...");
     try {
       const newData = {
         orderedQtyPieces: Number(orderedQtyPieces),
@@ -94,14 +94,11 @@ export function EditPoForm({
 
       await updatePurchaseOrder(po.id, newData, product);
 
-      // --- THIS IS THE FIX ---
-      // Re-calculate the new status based on the same logic as the service
-      const perShipper =
-        product.components.find((c) => c.partType === "Bulk - Supplied")
-          ?.perShipper || 0;
+      // --- THIS IS THE FIX: Use the correct unitsPerShipper logic ---
+      const unitsPerShipper = product.unitsPerShipper || 0;
       const pricePerShipper = product.pricePerShipper || 0;
       const newShippers =
-        perShipper > 0 ? newData.orderedQtyPieces / perShipper : 0;
+        unitsPerShipper > 0 ? newData.orderedQtyPieces / unitsPerShipper : 0;
       const newSystemAmount = newShippers * pricePerShipper;
       const amountDifference = Math.abs(
         newData.customerAmount - newSystemAmount
@@ -109,16 +106,13 @@ export function EditPoForm({
       const newStatus: PoStatus[] =
         amountDifference > 5 ? ["PO Check"] : ["Open"];
 
-      // Create a complete object for the optimistic UI update
-      const updatedPoForState = {
+      onUpdate({
         ...po,
         ...newData,
         status: newStatus,
         orderedQtyShippers: newShippers,
         systemAmount: newSystemAmount,
-      };
-
-      onUpdate(updatedPoForState);
+      });
 
       toast.dismiss(loadingToast);
       toast.success("PO updated successfully!");
@@ -135,9 +129,9 @@ export function EditPoForm({
   if (!po) return null;
 
   return (
-    <Dialog 
-      open={open} 
-      handler={handleOpen} 
+    <Dialog
+      open={open}
+      handler={handleOpen}
       size="md"
       placeholder=""
       onResize={() => {}}
@@ -154,8 +148,8 @@ export function EditPoForm({
       >
         Edit PO: {po.poNumber}
       </DialogHeader>
-      <DialogBody 
-        divider 
+      <DialogBody
+        divider
         className="flex flex-col gap-4"
         placeholder=""
         onResize={() => {}}
@@ -243,7 +237,7 @@ export function EditPoForm({
         {/* --- ANIMATION CHANGE POINT 2 --- */}
         <Collapse open={true}>
           <div className="p-3 bg-gray-50 rounded-lg border text-sm space-y-2">
-            <Typography 
+            <Typography
               variant="h6"
               placeholder=""
               onResize={() => {}}
