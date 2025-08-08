@@ -1,7 +1,6 @@
 // BLOCK 1: Imports
 import {
   collection,
-  addDoc,
   getDocs,
   query,
   where,
@@ -37,7 +36,7 @@ export const checkPoNumberExists = async (
   }
 };
 
-// BLOCK 4: createNewPurchaseOrder Function (Definitive Transactional Logic)
+// BLOCK 4: createNewPurchaseOrder Function (FINAL CORRECTED VERSION)
 export const createNewPurchaseOrder = async (
   poData: Omit<
     PurchaseOrder,
@@ -48,8 +47,6 @@ export const createNewPurchaseOrder = async (
     | "requestedDeliveryDate"
     | "deliveryDate"
     | "deliveryDocketNumber"
-    | "description"
-    | "minsPerShipper"
     | "components"
   > & { poCreatedDate: string; poReceivedDate: string }
 ): Promise<string> => {
@@ -66,8 +63,19 @@ export const createNewPurchaseOrder = async (
       const nextSequence = currentSequence + 1;
 
       const newPoDocRef = doc(poCollectionRef);
+
       const dataToSave = {
-        ...poData,
+        poNumber: poData.poNumber,
+        productCode: poData.productCode,
+        description: poData.description,
+        minsPerShipper: poData.minsPerShipper,
+        hourlyRunRate: poData.hourlyRunRate,
+        customerName: poData.customerName,
+        orderedQtyPieces: poData.orderedQtyPieces,
+        customerAmount: poData.customerAmount,
+        orderedQtyShippers: poData.orderedQtyShippers,
+        systemAmount: poData.systemAmount,
+        status: poData.status,
         sequence: nextSequence,
         createdAt: serverTimestamp(),
         poCreatedDate: Timestamp.fromDate(new Date(poData.poCreatedDate)),
@@ -93,7 +101,7 @@ export const createNewPurchaseOrder = async (
   }
 };
 
-// BLOCK 5: getAllPurchaseOrders Function (Corrected Sorting)
+// BLOCK 5: getAllPurchaseOrders Function (Final Version)
 export const getAllPurchaseOrders = async (
   allProducts: Product[],
   sortDirection: "asc" | "desc" = "desc"
@@ -108,6 +116,7 @@ export const getAllPurchaseOrders = async (
 
     const purchaseOrders: PurchaseOrder[] = querySnapshot.docs.map((doc) => {
       const data = doc.data();
+
       const productDetails = allProducts.find(
         (p) => p.productCode === data.productCode
       );
@@ -115,11 +124,15 @@ export const getAllPurchaseOrders = async (
         id: doc.id,
         poNumber: data.poNumber,
         productCode: data.productCode,
-        description: productDetails?.description || "N/A",
-        minsPerShipper: productDetails?.minsPerShipper || 0,
+
+        description: data.description || "N/A",
+        minsPerShipper: data.minsPerShipper || 0,
+        hourlyRunRate: data.hourlyRunRate || 0,
+
         components: productDetails?.components || [],
         customerName: data.customerName || "N/A",
         status: data.status || ["PO Check"],
+
         poCreatedDate: (data.poCreatedDate as Timestamp).toDate(),
         poReceivedDate: (data.poReceivedDate as Timestamp).toDate(),
         requestedDeliveryDate: data.requestedDeliveryDate

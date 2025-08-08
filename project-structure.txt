@@ -1,0 +1,62 @@
+.
+├── .codesandbox
+│   └── tasks.json
+├── dist
+│   ├── assets
+│   │   ├── index-B2vACFhd.js
+│   │   └── index-DA0TPsZd.css
+│   ├── index.html
+│   └── vite.svg
+├── eslint.config.js
+├── .gitignore
+├── index.html
+├── package.json
+├── package-lock.json
+├── pnpm-lock.yaml
+├── postcss.config.js
+├── project-structure.txt
+├── public
+│   └── vite.svg
+├── README.md
+├── src
+│   ├── App.tsx
+│   ├── components
+│   │   ├── dialogs
+│   │   │   └── ConfirmationDialog.tsx
+│   │   ├── forms
+│   │   │   ├── CreatePoForm.tsx
+│   │   │   ├── DespatchPoForm.tsx
+│   │   │   └── EditPoForm.tsx
+│   │   ├── modals
+│   │   │   └── ExcelImportModal.tsx
+│   │   ├── pages
+│   │   │   ├── DashboardPage.tsx
+│   │   │   ├── ForecastsPage.tsx
+│   │   │   ├── InventoryPage.tsx
+│   │   │   ├── ProductsPage.tsx
+│   │   │   ├── PurchaseOrdersPage.tsx
+│   │   │   └── SohPage.tsx
+│   │   └── Sidebar.tsx
+│   ├── contexts
+│   │   └── ThemeContext.tsx
+│   ├── firebase.config.ts
+│   ├── index.css
+│   ├── main.tsx
+│   ├── services
+│   │   ├── dashboard.service.ts
+│   │   ├── forecast.service.ts
+│   │   ├── inventory.service.ts
+│   │   ├── mrp.service.ts
+│   │   ├── product.service.ts
+│   │   └── purchaseOrder.service.ts
+│   ├── styles
+│   │   └── themes.ts
+│   ├── types
+│   │   └── mrp.types.ts
+│   └── vite-env.d.ts
+├── tailwind.config.js
+├── tsconfig.json
+├── tsconfig.node.json
+└── vite.config.ts
+
+14 directories, 45 files

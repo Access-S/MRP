@@ -130,6 +130,18 @@ export function CreatePoForm({
       return;
     }
 
+    const product = allProducts.find(
+      (p) => p.productCode === productCode.trim()
+    );
+
+    // A safety check to make sure we found the product
+    if (!product) {
+      toast.error(
+        "Could not find product details. Please re-select the product."
+      );
+      return;
+    }
+
     const finalStatus: PoStatus =
       poNumberStatus === "valid" &&
       productCodeStatus === "valid" &&
@@ -140,6 +152,9 @@ export function CreatePoForm({
     const poData = {
       poNumber: poNumber.trim(),
       productCode: productCode.trim(),
+      description: product.description,
+      minsPerShipper: product.minsPerShipper || 0,
+      hourlyRunRate: product.hourlyRunRate || 0,
       customerName: customerName.trim(),
       poCreatedDate,
       poReceivedDate,
@@ -163,6 +178,7 @@ export function CreatePoForm({
         poReceivedDate: new Date(poData.poReceivedDate),
         requestedDeliveryDate: new Date(poData.poReceivedDate), // Default to received date
         status: [finalStatus],
+        components: product.components || [],
       };
 
       onPoCreated(newPoForState);

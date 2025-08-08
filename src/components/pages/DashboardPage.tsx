@@ -6,7 +6,7 @@ import {
   getDashboardStats,
   DashboardStats,
 } from "../../services/dashboard.service";
-import { getAllProducts } from "../../services/product.service"; // 👈 Import product service
+import { getAllProducts } from "../../services/product.service";
 
 // BLOCK 2: StatCard Helper Component (with Color Logic)
 const StatCard = ({
@@ -18,7 +18,7 @@ const StatCard = ({
   title: string;
   value: string | number;
   theme: any;
-  alertColor?: "red" | "yellow"; // Optional prop for color
+  alertColor?: "red" | "yellow";
 }) => {
   const valueColorClass =
     alertColor === "red"

@@ -31,7 +31,7 @@ export const themes: Record<ThemeName, Theme> = {
     text: "text-gray-800",
     sidebarText: "text-gray-800",
     tableHeaderBg: "bg-blue-100",
-    borderColor: "border-blue-gray-100",
+    borderColor: "border-gray-800",
     hoverBg: "hover:bg-blue-50",
     activeRowBg: "bg-blue-50",
     scrollbar: {
@@ -49,7 +49,7 @@ export const themes: Record<ThemeName, Theme> = {
     text: "text-gray-800",
     sidebarText: "text-gray-800",
     tableHeaderBg: "bg-orange-100",
-    borderColor: "border-orange-200",
+    borderColor: "border-orange-800",
     hoverBg: "hover:bg-orange-50",
     activeRowBg: "bg-orange-50",
     scrollbar: {
@@ -67,7 +67,7 @@ export const themes: Record<ThemeName, Theme> = {
     text: "text-white",
     sidebarText: "text-white",
     tableHeaderBg: "bg-gray-700",
-    borderColor: "border-gray-700",
+    borderColor: "border-white-800",
     hoverBg: "hover:bg-gray-700",
     activeRowBg: "bg-gray-700",
     scrollbar: {

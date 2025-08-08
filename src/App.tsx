@@ -30,7 +30,7 @@ function AppLayout() {
     dashboard: "Dashboard",
     products: "Products (BOM)",
     "purchase-orders": "Purchase Orders",
-    inventory: "Inventory Planning Dashboard", // A more descriptive title
+    inventory: "Inventory Planning Dashboard",
     forecasts: "Sales Forecasts",
     soh: "Stock On Hand",
   };

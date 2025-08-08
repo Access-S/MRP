@@ -67,6 +67,7 @@ export interface PurchaseOrder {
   productCode: string;
   description?: string;
   minsPerShipper?: number;
+  hourlyRunRate?: number;
   components?: BomComponent[];
   customerName: string;
   poCreatedDate: Date;
