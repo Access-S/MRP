@@ -12,6 +12,7 @@ import {
   deleteDoc,
   runTransaction,
   serverTimestamp,
+  QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { PurchaseOrder, Product, PoStatus } from "../types/mrp.types";
@@ -271,4 +272,121 @@ export const deletePurchaseOrder = async (poId: string): Promise<void> => {
     console.error("Error deleting PO: ", error);
     throw new Error("Could not delete Purchase Order.");
   }
+};
+// BLOCK 12: getTotalPurchaseOrdersCount Function (NEW)
+import { getCountFromServer } from "firebase/firestore"; // Add this to your firestore imports at the top
+
+export const getTotalPurchaseOrdersCount = async (): Promise<number> => {
+  try {
+    const poCollection = collection(db, PO_COLLECTION_NAME);
+    const snapshot = await getCountFromServer(poCollection);
+    return snapshot.data().count;
+  } catch (error) {
+    console.error("Error getting total PO count:", error);
+    return 0;
+  }
+};
+// BLOCK 13: getPurchaseOrdersPaginated Function (NEW)
+import {
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  endBefore,
+  getDocs,
+  limitToLast,
+  QueryDocumentSnapshot,
+} from "firebase/firestore"; // Add/update these imports
+
+// Define the return type for our new function
+export interface PaginatedPoResponse {
+  purchaseOrders: PurchaseOrder[];
+  firstVisibleDoc: QueryDocumentSnapshot | null;
+  lastVisibleDoc: QueryDocumentSnapshot | null;
+}
+
+export const getPurchaseOrdersPaginated = async (
+  allProducts: Product[],
+  options: {
+    sortDirection?: "asc" | "desc";
+    itemsPerPage?: number;
+    direction?: "next" | "prev";
+    cursor?: QueryDocumentSnapshot;
+  }
+): Promise<PaginatedPoResponse> => {
+  const {
+    sortDirection = "desc",
+    itemsPerPage = 25,
+    direction,
+    cursor,
+  } = options;
+
+  const poCollection = collection(db, PO_COLLECTION_NAME);
+  let poQuery;
+
+  if (direction === "next" && cursor) {
+    // Get the next page
+    poQuery = query(
+      poCollection,
+      orderBy("sequence", sortDirection),
+      startAfter(cursor),
+      limit(itemsPerPage)
+    );
+  } else if (direction === "prev" && cursor) {
+    // Get the previous page
+    poQuery = query(
+      poCollection,
+      orderBy("sequence", sortDirection),
+      endBefore(cursor),
+      limitToLast(itemsPerPage)
+    );
+  } else {
+    // Get the first page
+    poQuery = query(
+      poCollection,
+      orderBy("sequence", sortDirection),
+      limit(itemsPerPage)
+    );
+  }
+
+  const documentSnapshots = await getDocs(poQuery);
+
+  const purchaseOrders: PurchaseOrder[] = documentSnapshots.docs.map((doc) => {
+    const data = doc.data();
+    const productDetails = allProducts.find(
+      (p) => p.productCode === data.productCode
+    );
+    return {
+      id: doc.id,
+      // ... (all the other fields like description, hourlyRunRate, etc.)
+      poNumber: data.poNumber,
+      productCode: data.productCode,
+      description: data.description || "N/A",
+      minsPerShipper: data.minsPerShipper || 0,
+      hourlyRunRate: data.hourlyRunRate || 0,
+      components: productDetails?.components || [],
+      customerName: data.customerName || "N/A",
+      status: data.status || ["PO Check"],
+      poCreatedDate: (data.poCreatedDate as Timestamp).toDate(),
+      poReceivedDate: (data.poReceivedDate as Timestamp).toDate(),
+      requestedDeliveryDate: data.requestedDeliveryDate
+        ? (data.requestedDeliveryDate as Timestamp).toDate()
+        : new Date(),
+      orderedQtyShippers: data.orderedQtyShippers,
+      systemAmount: data.systemAmount,
+      orderedQtyPieces: data.orderedQtyPieces || 0,
+      customerAmount: data.customerAmount || 0,
+      deliveryDate: data.deliveryDate
+        ? (data.deliveryDate as Timestamp).toDate()
+        : undefined,
+      deliveryDocketNumber: data.deliveryDocketNumber || undefined,
+      sequence: data.sequence,
+    };
+  });
+
+  const firstVisibleDoc = documentSnapshots.docs[0] || null;
+  const lastVisibleDoc =
+    documentSnapshots.docs[documentSnapshots.docs.length - 1] || null;
+
+  return { purchaseOrders, firstVisibleDoc, lastVisibleDoc };
 };
