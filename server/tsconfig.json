@@ -5,11 +5,11 @@
     "target": "es6",
     "moduleResolution": "node",
     "sourceMap": true,
-    "outDir": "dist", // Just output directly to a 'dist' folder
+    "outDir": "dist",
     "strict": true
   },
   "lib": ["es2015"],
   "include": [
-    "src/**/*" // Compile everything inside the src folder
+    "src/**/*"
   ]
 }
