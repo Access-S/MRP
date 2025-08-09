@@ -1,0 +1,135 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+ binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl"]
+
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+// RBAC Models
+// =======================
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique @db.Text
+  permissions RolePermission[]
+  // We'll link users via a separate profiles table if needed
+}
+
+model Permission {
+  id    Int              @id @default(autoincrement())
+  name  String           @unique @db.Text
+  roles RolePermission[]
+}
+
+model RolePermission {
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId       Int
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId Int
+
+  @@id([roleId, permissionId])
+}
+
+
+// =======================
+// Core Manufacturing Models
+// =======================
+model Product {
+  id                String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productCode       String          @unique @db.Text
+  description       String          @db.Text
+  unitsPerShipper   Decimal?        @map("units_per_shipper") @db.Decimal(12, 4)
+  dailyRunRate      Decimal?        @map("daily_run_rate") @db.Decimal(12, 4)
+  hourlyRunRate     Decimal?        @map("hourly_run_rate") @db.Decimal(12, 4)
+  minsPerShipper    Decimal?        @map("mins_per_shipper") @db.Decimal(12, 4)
+  pricePerShipper   Decimal?        @map("price_per_shipper") @db.Decimal(12, 4)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @default(now()) @map("updated_at") @db.Timestamptz(6)
+  boms              BomComponent[]
+  purchaseOrders    PurchaseOrder[]
+
+  @@map("products")
+}
+
+model Component {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  partCode        String         @unique @map("part_code") @db.Text
+  partDescription String         @map("part_description") @db.Text
+  partType        String?        @map("part_type") @db.Text
+  stock           Decimal        @default(0) @db.Decimal(12, 4)
+  safetyStock     Decimal        @default(0) @map("safety_stock") @db.Decimal(12, 4)
+  reorderPoint    Decimal        @default(0) @map("reorder_point") @db.Decimal(12, 4)
+  unitCost        Decimal?       @map("unit_cost") @db.Decimal(12, 4)
+  supplier        String?        @db.Text
+  leadTimeDays    Int?           @map("lead_time_days")
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  boms            BomComponent[]
+
+  @@map("components")
+}
+
+model BomComponent {
+  id                 String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId          String  @map("product_id") @db.Uuid
+  component          Component @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  componentId        String  @map("component_id") @db.Uuid
+  quantityPerShipper Decimal @map("quantity_per_shipper") @db.Decimal(12, 4)
+
+  @@unique([productId, componentId])
+  @@map("bom_components")
+}
+
+model Forecast {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productCode     String   @unique @map("product_code") @db.Text
+  monthlyForecast Json?    @map("monthly_forecast") @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+  
+  @@map("forecasts")
+}
+
+model PurchaseOrder {
+  id                   String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  poNumber             String     @unique @map("po_number") @db.Text
+  sequence             Int        @default(autoincrement())
+  product              Product    @relation(fields: [productId], references: [id])
+  productId            String     @map("product_id") @db.Uuid
+  customerName         String     @map("customer_name") @db.Text
+  status               PoStatus[]
+  orderedQtyPieces     Decimal    @map("ordered_qty_pieces") @db.Decimal(12, 4)
+  orderedQtyShippers   Decimal    @map("ordered_qty_shippers") @db.Decimal(12, 4)
+  customerAmount       Decimal    @map("customer_amount") @db.Decimal(12, 2)
+  systemAmount         Decimal    @map("system_amount") @db.Decimal(12, 2)
+  poCreatedDate        DateTime   @map("po_created_date") @db.Timestamptz(6)
+  poReceivedDate       DateTime   @map("po_received_date") @db.Timestamptz(6)
+  requestedDeliveryDate DateTime?  @map("requested_delivery_date") @db.Timestamptz(6)
+  deliveryDate         DateTime?  @map("delivery_date") @db.Timestamptz(6)
+  deliveryDocketNumber String?    @map("delivery_docket_number") @db.Text
+  createdAt            DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime   @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("purchase_orders")
+}
+
+enum PoStatus {
+  Open
+  Wip_Called
+  Packaging_Called
+  PO_Check
+  In_WH_Ready
+  In_Production
+  Awaiting_QA_Release
+  Ready_for_Despatch
+  Despatched_Completed
+  PO_Canceled
+}
