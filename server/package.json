@@ -2,11 +2,9 @@
     "name": "erp-server",
     "version": "1.0.0",
     "main": "dist/index.js",
-   "scripts": {
-  "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-  "build": "npx prisma generate && npx tsc",
-  "start": "node dist/index.js",
-  "postinstall": "npx prisma generate"
+"scripts": {
+  "start": "npx prisma generate && npx tsc && node dist/index.js",
+  "dev": "ts-node-dev --respawn --transpile-only src/index.ts"
 },
     "dependencies": {
         "@prisma/client": "^6.13.0",
