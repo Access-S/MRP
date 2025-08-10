@@ -9,7 +9,7 @@ import {
   Input,
 } from "@material-tailwind/react";
 import { Product, BomComponent } from "../../types/mrp.types";
-import { getAllProducts } from "../../services/product.service";
+import { fetchAllProducts } from "../../services/api.service";
 import { useTheme } from "../../contexts/ThemeContext";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
@@ -143,7 +143,7 @@ export function ProductsPage() {
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
-      const fetchedProducts = await getAllProducts();
+      const fetchedProducts = await fetchAllProducts();
       setProducts(fetchedProducts);
       setLoading(false);
     };

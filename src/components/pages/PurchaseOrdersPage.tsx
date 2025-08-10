@@ -1,314 +1,89 @@
 // BLOCK 1: Imports
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
-  Button,
-  Typography,
-  Card,
-  Spinner,
-  Chip,
-  CardBody,
-  Input,
-  Menu,
-  MenuHandler,
-  MenuList,
-  MenuItem,
-  IconButton,
+  Button, Typography, Card, Spinner, Chip, CardBody, Input,
+  Menu, MenuHandler, MenuList, MenuItem, IconButton
 } from "@material-tailwind/react";
 import {
-  PlusIcon,
-  MagnifyingGlassIcon,
-  Cog6ToothIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
-  ArrowTopRightOnSquareIcon,
-  ArrowLeftIcon, // --- THIS WAS MISSING ---
-  ArrowRightIcon, // --- THIS WAS MISSING ---
+  PlusIcon, MagnifyingGlassIcon, Cog6ToothIcon, ArrowDownIcon,
+  ArrowUpIcon, ArrowTopRightOnSquareIcon, ArrowLeftIcon, ArrowRightIcon
 } from "@heroicons/react/24/outline";
 import { useTheme } from "../../contexts/ThemeContext";
-import { CreatePoForm } from "../forms/CreatePoForm";
-import { EditPoForm } from "../forms/EditPoForm";
-import { DespatchPoForm } from "../forms/DespatchPoForm";
-import { ConfirmationDialog } from "../dialogs/ConfirmationDialog";
 import { PoDetailModal } from "../modals/PoDetailModal";
-import { PurchaseOrder, Product, PoStatus } from "../../types/mrp.types";
-import {
-  updatePoStatus,
-  despatchPo,
-  reopenDespatchedPo,
-  deletePurchaseOrder,
-  getTotalPurchaseOrdersCount,
-  getPurchaseOrdersPaginated,
-  PaginatedPoResponse,
-} from "../../services/purchaseOrder.service";
-import { getAllProducts } from "../../services/product.service";
-import { ALL_PO_STATUSES } from "../../types/mrp.types";
+import { CreatePoForm } from "../forms/CreatePoForm";
+import { PurchaseOrder, PoStatus, ALL_PO_STATUSES } from "../../types/mrp.types";
 import toast from "react-hot-toast";
-import { PaginationControls } from "../PaginationControls";
-import { QueryDocumentSnapshot } from "firebase/firestore";
+import { useDebounce } from 'use-debounce';
+import { fetchPurchaseOrders, updatePurchaseOrderStatus, PaginatedApiResponse } from "../../services/api.service";
 
 // BLOCK 2: Constants and Helpers
-const formatDate = (date: Date) => {
-  if (!date || !(date instanceof Date)) return "N/A";
-  return new Intl.DateTimeFormat("en-AU", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  }).format(date);
-};
-const TABLE_HEAD = [
-  "View",
-  "Manage",
-  "PO Number",
-  "Product Code",
-  "Description",
-  "Order Qty|(shippers)",
-  "Prod. Time|(hrs)",
-  "Status",
-];
+const TABLE_HEAD = [ "View", "Manage", "PO Number", "Product Code", "Description", "Order Qty|(shippers)", "Prod. Time|(hrs)", "Status" ];
 
 // BLOCK 3: Main Component Definition
 export function PurchaseOrdersPage() {
   // BLOCK 4: State
   const { theme } = useTheme();
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [poResponse, setPoResponse] = useState<PaginatedPoResponse>({
-    purchaseOrders: [],
-    firstVisibleDoc: null,
-    lastVisibleDoc: null,
-  });
-  const [totalPoCount, setTotalPoCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(25);
-  const [pageCursors, setPageCursors] = useState<
-    (QueryDocumentSnapshot | null)[]
-  >([null]);
-  const [poToView, setPoToView] = useState<PurchaseOrder | null>(null);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [pagination, setPagination] = useState<PaginatedApiResponse['pagination']>({ total: 0, page: 1, limit: 25, totalPages: 1 });
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>("desc");
+  const [poToView, setPoToView] = useState<PurchaseOrder | null>(null);
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
-  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [poToEdit, setPoToEdit] = useState<PurchaseOrder | null>(null);
-  const [isDespatchFormOpen, setIsDespatchFormOpen] = useState(false);
-  const [poToDespatch, setPoToDespatch] = useState<PurchaseOrder | null>(null);
-  const [isReopenConfirmOpen, setIsReopenConfirmOpen] = useState(false);
-  const [poToReopen, setPoToReopen] = useState<PurchaseOrder | null>(null);
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [poToDelete, setPoToDelete] = useState<PurchaseOrder | null>(null);
 
-  // BLOCK 5: Handlers & Effects
-  const handleOpenCreateForm = () => setIsCreateFormOpen((cur) => !cur);
-  const handleOpenEditForm = (po: PurchaseOrder | null) => {
-    setPoToEdit(po);
-    setIsEditFormOpen(po ? true : false);
-  };
-  const handleOpenDespatchForm = (po: PurchaseOrder | null) => {
-    setPoToDespatch(po);
-    setIsDespatchFormOpen(po ? true : false);
-  };
-  const handleOpenReopenConfirm = (po: PurchaseOrder | null) => {
-    setPoToReopen(po);
-    setIsReopenConfirmOpen(po ? true : false);
-  };
-  const handleOpenDeleteConfirm = (po: PurchaseOrder | null) => {
-    setPoToDelete(po);
-    setIsDeleteConfirmOpen(po ? true : false);
-  };
-  const handleOpenViewModal = (po: PurchaseOrder | null) => {
-    setPoToView(po);
-  };
-
-  const fetchPageData = async (options: {
-    direction?: "next" | "prev";
-    sort?: "asc" | "desc";
-    perPage?: number;
-  }) => {
-    if (!allProducts.length) return;
+  // BLOCK 5: Data Fetching and Handlers
+  const loadPurchaseOrders = useCallback(async (page: number, search: string, status: string) => {
     setLoading(true);
     try {
-      const {
-        direction,
-        sort = sortDirection,
-        perPage = itemsPerPage,
-      } = options;
-      let cursor: QueryDocumentSnapshot | null | undefined = undefined;
-      if (direction === "next") {
-        cursor = poResponse.lastVisibleDoc;
-        setCurrentPage((prev) => prev + 1);
-      } else if (direction === "prev" && currentPage > 1) {
-        cursor = pageCursors[currentPage - 2] ?? undefined;
-        setCurrentPage((prev) => prev - 1);
-      } else {
-        setCurrentPage(1);
-        setPageCursors([null]);
-      }
-      const response = await getPurchaseOrdersPaginated(allProducts, {
-        sortDirection: sort,
-        itemsPerPage: perPage,
-        direction: direction,
-        cursor,
-      });
-      if (direction === "next") {
-        setPageCursors((prev) => [...prev, response.lastVisibleDoc]);
-      } else if (direction === "prev") {
-        setPageCursors((prev) => prev.slice(0, -1));
-      } else {
-        setPageCursors([null, response.lastVisibleDoc]);
-      }
-      setPoResponse(response);
-    } catch (error) {
-      console.error("Error fetching paginated data:", error);
-      toast.error("Could not load page data.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSort = () => {
-    const newSortDirection = sortDirection === "asc" ? "desc" : "asc";
-    setSortDirection(newSortDirection);
-    fetchPageData({ sort: newSortDirection });
-  };
-
-  const handleItemsPerPageChange = (value: string) => {
-    const newItemsPerPage = parseInt(value, 10);
-    setItemsPerPage(newItemsPerPage);
-    fetchPageData({ perPage: newItemsPerPage });
-  };
+      const response = await fetchPurchaseOrders({ page, search, status, limit: pagination.limit, sortDirection });
+      setPurchaseOrders(response.data);
+      setPagination(response.pagination);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load purchase orders.");
+    } finally { setLoading(false); }
+  }, [pagination.limit, sortDirection]);
 
   useEffect(() => {
-    const initialLoad = async () => {
-      setLoading(true);
-      try {
-        const products = await getAllProducts();
-        setAllProducts(products);
-        const total = await getTotalPurchaseOrdersCount();
-        setTotalPoCount(total);
-        const response = await getPurchaseOrdersPaginated(products, {
-          sortDirection,
-          itemsPerPage,
-        });
-        setPoResponse(response);
-        setPageCursors([null, response.lastVisibleDoc]);
-      } catch (error) {
-        console.error("Initial data load failed:", error);
-        toast.error("Failed to load initial data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    initialLoad();
-  }, []);
+    loadPurchaseOrders(1, debouncedSearchQuery, statusFilter);
+  }, [debouncedSearchQuery, statusFilter, sortDirection, loadPurchaseOrders]);
 
-  const handlePoCreated = async () => {
-    const total = await getTotalPurchaseOrdersCount();
-    setTotalPoCount(total);
-    fetchPageData({});
-  };
-
-  const handlePoUpdate = (updatedPoData: Partial<PurchaseOrder>) => {
-    setPoResponse((prev) => ({
-      ...prev,
-      purchaseOrders: prev.purchaseOrders.map((po) =>
-        po.id === updatedPoData.id ? { ...po, ...updatedPoData } : po
-      ),
-    }));
-  };
-
-  const handleStatusUpdate = async (po: PurchaseOrder, newStatus: string) => {
-    if (newStatus === "Despatched/ Completed") {
-      handleOpenDespatchForm(po);
-      return;
+  const handlePageChange = (newPage: number) => {
+    if (newPage > 0 && newPage <= pagination.totalPages) {
+      loadPurchaseOrders(newPage, debouncedSearchQuery, statusFilter);
     }
-    const toastId = toast.loading("Updating status...");
+  };
+  
+  const handleSort = () => setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  const handleOpenViewModal = (po: any | null) => setPoToView(po);
+
+  const handleStatusUpdate = async (poId: string, status: string) => {
+    const toastId = toast.loading(`Updating status...`);
     try {
-      const newStatusArray = await updatePoStatus(
-        po.id,
-        newStatus as PoStatus,
-        po.status
+      const updatedStatuses = await updatePurchaseOrderStatus(poId, status);
+      setPurchaseOrders(prevPOs => 
+        prevPOs.map(p => {
+          if (p.id === poId) {
+            const newStatusArray = updatedStatuses.map(s => ({ status: s }));
+            const newCurrentStatus = updatedStatuses.length > 0 ? updatedStatuses[updatedStatuses.length - 1] : 'Open';
+            return { ...p, statuses: newStatusArray, current_status: newCurrentStatus };
+          }
+          return p;
+        })
       );
-      handlePoUpdate({ id: po.id, status: newStatusArray });
-      toast.success("Status updated!", { id: toastId });
-    } catch (error) {
-      toast.error("Failed to update status.", { id: toastId });
+      toast.success('Status updated!', { id: toastId });
+    } catch (error: any) {
+      toast.error(error.message, { id: toastId });
     }
   };
 
-  const handleConfirmDespatch = async (
-    deliveryDate: string,
-    docketNumber: string
-  ) => {
-    if (!poToDespatch) return;
-    const toastId = toast.loading("Despatching PO...");
-    try {
-      await despatchPo(poToDespatch.id, deliveryDate, docketNumber);
-      handlePoUpdate({
-        id: poToDespatch.id,
-        status: ["Despatched/ Completed"],
-        deliveryDate: new Date(deliveryDate),
-        deliveryDocketNumber: docketNumber,
-      });
-      toast.success("PO despatched successfully!", { id: toastId });
-    } catch (error) {
-      toast.dismiss(toastId);
-      toast.error("Failed to despatch PO.");
-    }
-  };
+  const handleOpenCreateForm = () => setIsCreateFormOpen(cur => !cur);
+  const handlePoCreated = () => { loadPurchaseOrders(1, '', ''); };
 
-  const handleConfirmReopen = async () => {
-    if (!poToReopen) return;
-    const toastId = toast.loading("Re-opening PO...");
-    try {
-      await reopenDespatchedPo(poToReopen.id);
-      handlePoUpdate({
-        id: poToReopen.id,
-        status: ["Open"],
-        deliveryDate: undefined,
-        deliveryDocketNumber: undefined,
-      });
-      toast.success("PO re-opened successfully!", { id: toastId });
-    } catch (error) {
-      toast.dismiss(toastId);
-      toast.error("Failed to re-open PO.");
-    }
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!poToDelete) return;
-    const toastId = toast.loading("Deleting PO...");
-    try {
-      await deletePurchaseOrder(poToDelete.id);
-      const total = await getTotalPurchaseOrdersCount();
-      setTotalPoCount(total);
-      fetchPageData({});
-      toast.success(`PO ${poToDelete.poNumber} deleted successfully.`, {
-        id: toastId,
-      });
-    } catch (error) {
-      toast.dismiss(toastId);
-      toast.error("Failed to delete PO.");
-    }
-  };
-
-  const filteredPurchaseOrders = useMemo(() => {
-    if (!searchQuery) return poResponse.purchaseOrders;
-    const lowercasedQuery = searchQuery.toLowerCase();
-    return poResponse.purchaseOrders.filter((po) => {
-      const poNumberMatch = po.poNumber
-        ? po.poNumber.toLowerCase().includes(lowercasedQuery)
-        : false;
-      const productCodeMatch = po.productCode
-        ? po.productCode.toLowerCase().includes(lowercasedQuery)
-        : false;
-      const descriptionMatch = po.description
-        ? po.description.toLowerCase().includes(lowercasedQuery)
-        : false;
-      return poNumberMatch || productCodeMatch || descriptionMatch;
-    });
-  }, [poResponse.purchaseOrders, searchQuery]);
 
   // BLOCK 6: Render Logic
-  if (!allProducts.length && loading) {
+  if (loading && purchaseOrders.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <Spinner className="h-12 w-12" />
@@ -316,64 +91,28 @@ export function PurchaseOrdersPage() {
     );
   }
 
-  const paginationProps = {
-    currentPage,
-    itemsPerPage,
-    totalItems: totalPoCount,
-    onPageChange: (direction: "next" | "prev") => fetchPageData({ direction }),
-    onItemsPerPageChange: handleItemsPerPageChange,
-    hasNextPage:
-      poResponse.lastVisibleDoc !== null &&
-      poResponse.purchaseOrders.length === itemsPerPage,
-    hasPrevPage: currentPage > 1,
-  };
-
   return (
     <>
       <Card className={`w-full ${theme.cards} shadow-sm`}>
-        <div
-          className={`flex items-center justify-between p-4 border-b ${theme.borderColor}`}
-        >
+        <div className={`flex items-center justify-between p-4 border-b ${theme.borderColor}`}>
           <div>
-            <Typography variant="h5" className={theme.text}>
-              Purchase Orders
-            </Typography>
-            <Typography
-              color="gray"
-              className={`mt-1 font-normal ${theme.text} opacity-80`}
-            >
+            <Typography variant="h5" className={theme.text}>Purchase Orders</Typography>
+            <Typography color="gray" className={`mt-1 font-normal ${theme.text} opacity-80`}>
               Manage all incoming customer orders.
             </Typography>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="text"
-              className="flex items-center gap-2"
-              onClick={handleSort}
-            >
+            <Button variant="text" className="flex items-center gap-2" onClick={handleSort}>
               {sortDirection === "desc" ? (
-                <ArrowDownIcon
-                  strokeWidth={2}
-                  className={`h-4 w-4 ${theme.text}`}
-                />
+                <ArrowDownIcon strokeWidth={2} className={`h-4 w-4 ${theme.text}`} />
               ) : (
-                <ArrowUpIcon
-                  strokeWidth={2}
-                  className={`h-4 w-4 ${theme.text}`}
-                />
+                <ArrowUpIcon strokeWidth={2} className={`h-4 w-4 ${theme.text}`} />
               )}
-              <Typography
-                variant="small"
-                className={`font-normal ${theme.text}`}
-              >
+              <Typography variant="small" className={`font-normal ${theme.text}`}>
                 Sort by {sortDirection === "desc" ? "Newest" : "Oldest"}
               </Typography>
             </Button>
-            <Button
-              onClick={handleOpenCreateForm}
-              className="flex items-center gap-3"
-              size="sm"
-            >
+            <Button className="flex items-center gap-3" size="sm">
               <PlusIcon strokeWidth={2} className="h-4 w-4" /> Create New PO
             </Button>
           </div>
@@ -382,55 +121,53 @@ export function PurchaseOrdersPage() {
         <div className="flex flex-wrap items-center justify-between border-b">
           <div className="p-4 flex-grow">
             <Input
-              label="Search current page..."
+              label="Search all purchase orders..."
               icon={<MagnifyingGlassIcon className="h-5 w-5" />}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               color={theme.isDark ? "white" : "black"}
             />
           </div>
-          <div className="p-4 flex items-center gap-4">
-            <Button
-              variant="text"
-              className="flex items-center gap-2"
-              onClick={() => paginationProps.onPageChange("prev")}
-              disabled={!paginationProps.hasPrevPage}
-              placeholder={undefined}
-              onPointerEnterCapture={undefined}
-              onPointerLeaveCapture={undefined}
+          <div className="p-4 w-full md:w-auto">
+            <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className={`w-full p-2 border rounded-md ${theme.borderColor} ${theme.bg} ${theme.text}`}
             >
+                <option value="">All Statuses</option>
+                <option value="Open">Open</option>
+                <option value="Wip Called">Wip Called</option>
+                <option value="Packaging Called">Packaging Called</option>
+                <option value="In Production">In Production</option>
+                <option value="Despatched/ Completed">Despatched/ Completed</option>
+                <option value="PO Canceled">PO Canceled</option>
+            </select>
+          </div>
+          <div className="p-4 flex items-center gap-4">
+            <Button variant="text" onClick={() => handlePageChange(pagination.page - 1)} disabled={pagination.page <= 1}>
               <ArrowLeftIcon strokeWidth={2} className="h-4 w-4" /> Previous
             </Button>
-            <Button
-              variant="text"
-              className="flex items-center gap-2"
-              onClick={() => paginationProps.onPageChange("next")}
-              disabled={!paginationProps.hasNextPage}
-              placeholder={undefined}
-              onPointerEnterCapture={undefined}
-              onPointerLeaveCapture={undefined}
-            >
+            <Typography>Page {pagination.page} of {pagination.totalPages}</Typography>
+            <Button variant="text" onClick={() => handlePageChange(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages}>
               Next <ArrowRightIcon strokeWidth={2} className="h-4 w-4" />
             </Button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Spinner className="h-12 w-12" />
-          </div>
-        ) : filteredPurchaseOrders.length > 0 ? (
+          <div className="flex justify-center items-center h-64"><Spinner className="h-12 w-12" /></div>
+        ) : purchaseOrders.length > 0 ? (
           <CardBody className="overflow-x-auto p-0">
             <div className={`border-2 ${theme.borderColor} rounded-lg m-4`}>
               <table className="w-full table-fixed text-left">
-                <colgroup>
-                  <col style={{ width: "5%" }} />{" "}
-                  <col style={{ width: "5%" }} />{" "}
-                  <col style={{ width: "10%" }} />{" "}
-                  <col style={{ width: "10%" }} />{" "}
-                  <col style={{ width: "35%" }} />{" "}
-                  <col style={{ width: "10%" }} />{" "}
-                  <col style={{ width: "10%" }} />{" "}
+                 <colgroup>
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "35%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
                   <col style={{ width: "15%" }} />
                 </colgroup>
                 <thead className={`border-b-2 ${theme.borderColor}`}>
@@ -444,26 +181,11 @@ export function PurchaseOrdersPage() {
                         <th key={head} className={thClasses}>
                           {head.includes("|") ? (
                             <>
-                              <Typography
-                                variant="small"
-                                className={`font-semibold leading-tight ${theme.text}`}
-                              >
-                                {head.split("|")[0]}
-                              </Typography>
-                              <Typography
-                                variant="small"
-                                className={`font-semibold leading-tight ${theme.text} opacity-80`}
-                              >
-                                {head.split("|")[1]}
-                              </Typography>
+                              <Typography variant="small" className={`font-semibold leading-tight ${theme.text}`}>{head.split("|")[0]}</Typography>
+                              <Typography variant="small" className={`font-semibold leading-tight ${theme.text} opacity-80`}>{head.split("|")[1]}</Typography>
                             </>
                           ) : (
-                            <Typography
-                              variant="small"
-                              className={`font-semibold leading-none ${theme.text}`}
-                            >
-                              {head}
-                            </Typography>
+                            <Typography variant="small" className={`font-semibold leading-none ${theme.text}`}>{head}</Typography>
                           )}
                         </th>
                       );
@@ -471,17 +193,10 @@ export function PurchaseOrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredPurchaseOrders.map((po) => {
+                  {purchaseOrders.map((po) => {
                     const hoverBgClass = theme.hoverBg;
-                    const hourlyRunRate = po.hourlyRunRate || 0;
-                    const productionTimeHours =
-                      hourlyRunRate > 0
-                        ? po.orderedQtyShippers / hourlyRunRate
-                        : 0;
-                    const statuses = Array.isArray(po.status)
-                      ? po.status
-                      : ["Error"];
-                    const getCellClasses = (isLast = false) => {
+                    const productionTimeHours = po.hourly_run_rate > 0 ? po.ordered_qty_shippers / po.hourly_run_rate : 0;
+                     const getCellClasses = (isLast = false) => {
                       let classes = `border-b ${theme.borderColor} p-1`;
                       if (!isLast) {
                         classes += ` border-r`;
@@ -491,141 +206,69 @@ export function PurchaseOrdersPage() {
                     return (
                       <tr key={po.id} className={hoverBgClass}>
                         <td className={`${getCellClasses()} text-center`}>
-                          <IconButton
-                            variant="text"
-                            size="sm"
-                            onClick={() => handleOpenViewModal(po)}
-                          >
-                            <ArrowTopRightOnSquareIcon
-                              className={`h-5 w-5 ${theme.text}`}
-                            />
+                          <IconButton variant="text" size="sm" onClick={() => handleOpenViewModal(po)}>
+                            <ArrowTopRightOnSquareIcon className={`h-5 w-5 ${theme.text}`} />
                           </IconButton>
                         </td>
                         <td className={`${getCellClasses()} text-center`}>
                           <Menu>
                             <MenuHandler>
                               <IconButton variant="text" size="sm">
-                                <Cog6ToothIcon
-                                  className={`h-5 w-5 ${theme.text}`}
-                                />
+                                <Cog6ToothIcon className={`h-5 w-5 ${theme.text}`} />
                               </IconButton>
                             </MenuHandler>
                             <MenuList>
-                              <MenuItem onClick={() => handleOpenEditForm(po)}>
-                                Edit PO Details
-                              </MenuItem>
+                              <MenuItem>Edit PO Details</MenuItem>
                               <hr className="my-2" />
-                              <MenuItem
-                                className="text-red-500 hover:bg-red-50 focus:bg-red-50 active:bg-red-50"
-                                onClick={() => handleOpenDeleteConfirm(po)}
-                              >
+                              <MenuItem className="text-red-500 hover:bg-red-50 focus:bg-red-50 active:bg-red-50">
                                 Delete PO
                               </MenuItem>
                             </MenuList>
                           </Menu>
                         </td>
                         <td className={`${getCellClasses()} text-center`}>
-                          <Typography
-                            variant="small"
-                            className={`font-bold ${theme.text}`}
-                          >
-                            {po.poNumber}
-                          </Typography>
+                          <Typography variant="small" className={`font-bold ${theme.text}`}>{po.po_number}</Typography>
                         </td>
                         <td className={`${getCellClasses()} text-center`}>
-                          <Typography
-                            variant="small"
-                            className={`font-normal ${theme.text}`}
-                          >
-                            {po.productCode}
-                          </Typography>
+                          <Typography variant="small" className={`font-normal ${theme.text}`}>{po.product?.product_code || 'N/A'}</Typography>
                         </td>
                         <td className={`${getCellClasses()} text-left`}>
-                          <Typography
-                            variant="small"
-                            className={`font-normal ${theme.text}`}
-                          >
-                            {po.description}
-                          </Typography>
+                          <Typography variant="small" className={`font-normal ${theme.text}`}>{po.description}</Typography>
                         </td>
                         <td className={`${getCellClasses()} text-center`}>
-                          <Typography
-                            variant="small"
-                            className={`font-semibold ${theme.text}`}
-                          >
-                            {po.orderedQtyShippers.toFixed(2)}
-                          </Typography>
+                          <Typography variant="small" className={`font-semibold ${theme.text}`}>{Number(po.ordered_qty_shippers || 0).toFixed(2)}</Typography>
                         </td>
                         <td className={`${getCellClasses()} text-center`}>
-                          <Typography
-                            variant="small"
-                            className={`font-normal ${theme.text}`}
-                          >
-                            {productionTimeHours.toFixed(2)}
-                          </Typography>
+                          <Typography variant="small" className={`font-normal ${theme.text}`}>{productionTimeHours.toFixed(2)}</Typography>
                         </td>
                         <td className={`${getCellClasses(true)} text-center`}>
                           <Menu>
                             <MenuHandler>
-                              <div className="flex flex-wrap justify-center gap-1 cursor-pointer">
-                                {statuses.map((s) => (
+                              <div className="flex flex-wrap justify-center gap-1 cursor-pointer p-1">
+                                {po.statuses?.map((s: { status: string }) => (
                                   <Chip
-                                    key={s}
+                                    key={s.status}
                                     variant="ghost"
                                     size="sm"
-                                    value={s}
-                                    color={
-                                      s === "PO Check" || s === "Error"
-                                        ? "red"
-                                        : s === "Open"
-                                        ? "green"
-                                        : s === "Despatched/ Completed"
-                                        ? "blue"
-                                        : "blue-gray"
-                                    }
+                                    value={s.status}
+                                    color={ s.status === "PO Check" ? "red" : s.status === "Despatched/ Completed" ? "blue" : "blue-gray" }
                                   />
                                 ))}
+                                {(!po.statuses || po.statuses.length === 0) && (
+                                   <Chip variant="ghost" size="sm" value="Open" color="green" />
+                                )}
                               </div>
                             </MenuHandler>
                             <MenuList>
-                              {po.status.includes("PO Check") ? (
-                                <MenuItem
-                                  onClick={() => handleOpenEditForm(po)}
-                                >
-                                  Correct PO Details
-                                </MenuItem>
-                              ) : po.status.includes(
-                                  "Despatched/ Completed"
-                                ) ? (
-                                <MenuItem
-                                  onClick={() => handleOpenReopenConfirm(po)}
-                                >
-                                  Re-open Despatched PO
-                                </MenuItem>
-                              ) : (
-                                ALL_PO_STATUSES.map((statusOption) => {
-                                  if (statusOption === "PO Check") return null;
-                                  return (
-                                    <MenuItem
-                                      key={statusOption}
-                                      onClick={() =>
-                                        handleStatusUpdate(po, statusOption)
-                                      }
-                                    >
-                                      <span
-                                        className={`mr-2 ${
-                                          statuses.includes(statusOption)
-                                            ? "opacity-1-00"
-                                            : "opacity-0"
-                                        }`}
-                                      >
-                                        ✓
-                                      </span>
-                                      {statusOption}
-                                    </MenuItem>
-                                  );
-                                })
-                              )}
+                              {ALL_PO_STATUSES.map((statusOption) => {
+                                const isChecked = po.statuses?.some((s: { status: string }) => s.status === statusOption);
+                                return (
+                                  <MenuItem key={statusOption} onClick={() => handleStatusUpdate(po.id, statusOption)}>
+                                    <span className={`mr-2 ${isChecked ? "opacity-100" : "opacity-0"}`}>✓</span>
+                                    {statusOption}
+                                  </MenuItem>
+                                );
+                              })}
                             </MenuList>
                           </Menu>
                         </td>
@@ -639,56 +282,21 @@ export function PurchaseOrdersPage() {
         ) : (
           <div className="p-8 text-center">
             <Typography color="gray" className={theme.text}>
-              {searchQuery
-                ? `No purchase orders found matching "${searchQuery}"`
-                : "No purchase orders found."}
+              {searchQuery || statusFilter ? `No purchase orders found matching the current filters.` : "No purchase orders found."}
             </Typography>
           </div>
         )}
-
-        <div className="border-t">
-          <PaginationControls {...paginationProps} />
-        </div>
       </Card>
-
+      
       <PoDetailModal
         open={poToView !== null}
         handleOpen={() => handleOpenViewModal(null)}
         po={poToView}
       />
-      <CreatePoForm
+            <CreatePoForm
         open={isCreateFormOpen}
         handleOpen={handleOpenCreateForm}
         onPoCreated={handlePoCreated}
-      />
-      <EditPoForm
-        open={isEditFormOpen}
-        handleOpen={() => handleOpenEditForm(null)}
-        po={poToEdit}
-        product={
-          allProducts.find((p) => p.productCode === poToEdit?.productCode) ||
-          null
-        }
-        onUpdate={handlePoUpdate}
-      />
-      <DespatchPoForm
-        open={isDespatchFormOpen}
-        handleOpen={() => handleOpenDespatchForm(null)}
-        onSubmit={handleConfirmDespatch}
-      />
-      <ConfirmationDialog
-        open={isReopenConfirmOpen}
-        handleOpen={() => handleOpenReopenConfirm(null)}
-        onConfirm={handleConfirmReopen}
-        title="Re-open Despatched PO?"
-        message="..."
-      />
-      <ConfirmationDialog
-        open={isDeleteConfirmOpen}
-        handleOpen={() => handleOpenDeleteConfirm(null)}
-        onConfirm={handleConfirmDelete}
-        title="Delete Purchase Order?"
-        message="..."
       />
     </>
   );

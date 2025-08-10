@@ -1,48 +1,33 @@
-import express, { Request, Response } from 'express';
+// BLOCK 1: Imports
+import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { supabase } from './config/supabase';
+import purchaseOrderRoutes from './routes/purchaseOrder.routes';
+import productRoutes from './routes/product.routes';
 import './config/firebase';
+import { migrateProducts } from './migrations/migrate-products';
 import { migratePurchaseOrders } from './migrations/migrate-purchase-orders';
 
-// --- ADD THIS IMPORT ---
-import { migrateProducts } from './migrations/migrate-products';
-
-// Load environment variables
+// BLOCK 2: Setup
 dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
+// BLOCK 3: Middleware
 app.use(cors());
 app.use(express.json());
 
+// BLOCK 4: API Routes
+app.use(purchaseOrderRoutes);
+app.use(productRoutes);
+
+// BLOCK 5: Migration & Test Routes
+app.get('/api/migrate-products', migrateProducts);
 app.get('/api/migrate-purchase-orders', migratePurchaseOrders);
 
-// --- ROUTES ---
+// BLOCK 6: Root Health Check and Server Start
+app.get('/', (req, res) => res.send('MRP Backend is running!'));
 
-// Root health check
-app.get('/', (req: Request, res: Response) => {
-  res.send('MRP Backend is running!');
-});
-
-// Database connection test route
-app.get('/api/test-db', async (req: Request, res: Response) => {
-  try {
-    const { data, error } = await supabase.from('products').select('id').limit(1);
-    if (error) throw error;
-    res.status(200).json({ message: 'Successfully connected to Supabase.', data });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Failed to connect to Supabase.', error: error.message });
-  }
-});
-
-// --- ADD THIS NEW MIGRATION ROUTE ---
-app.get('/api/migrate-products', migrateProducts);
-
-
-// Start the server
 app.listen(PORT, () => {
-  console.log(`Server is running on the port forwarded by your environment (e.g., http://localhost:${PORT})`);
+  console.log(`Server is running on port ${PORT}`);
 });

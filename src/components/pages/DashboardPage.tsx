@@ -6,7 +6,7 @@ import {
   getDashboardStats,
   DashboardStats,
 } from "../../services/dashboard.service";
-import { getAllProducts } from "../../services/product.service";
+import { fetchAllProducts } from "../../services/api.service";
 
 // BLOCK 2: StatCard Helper Component (with Color Logic)
 const StatCard = ({
@@ -48,7 +48,7 @@ export function DashboardPage() {
   useEffect(() => {
     const fetchStats = async () => {
       setLoading(true);
-      const allProducts = await getAllProducts();
+      const allProducts = await fetchAllProducts();
       const fetchedStats = await getDashboardStats(allProducts);
       setStats(fetchedStats);
       setLoading(false);

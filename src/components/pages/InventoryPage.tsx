@@ -10,7 +10,7 @@ import {
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useTheme } from "../../contexts/ThemeContext";
 import { getAllSoh } from "../../services/inventory.service";
-import { getAllProducts } from "../../services/product.service";
+import { fetchAllProducts } from "../../services/api.service";
 import { getAllForecasts } from "../../services/forecast.service";
 import {
   calculateInventoryProjections,
@@ -34,7 +34,7 @@ export function InventoryPage() {
       try {
         const [components, products, forecasts] = await Promise.all([
           getAllSoh(),
-          getAllProducts(),
+          fetchAllProducts(),
           getAllForecasts(),
         ]);
         const calculatedProjections = calculateInventoryProjections(
