@@ -1,77 +1,70 @@
 // BLOCK 1: Imports
-import React from "react";
-import { Button, Typography, Select, Option } from "@material-tailwind/react";
-import { ArrowRightIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
+import React from 'react';
+import { Button, Typography } from '@material-tailwind/react';
+import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { useTheme } from '../contexts/ThemeContext';
 
-// BLOCK 2: Props Interface
+// BLOCK 2: Interface and Component Definition
 interface PaginationControlsProps {
   currentPage: number;
+  totalPages: number;
   itemsPerPage: number;
   totalItems: number;
-  onPageChange: (direction: "next" | "prev") => void;
-  onItemsPerPageChange: (value: string) => void;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
+  onPageChange: (newPage: number) => void;
+  onItemsPerPageChange: (newLimit: number) => void;
 }
 
-// BLOCK 3: Main Component
 export function PaginationControls({
   currentPage,
+  totalPages,
   itemsPerPage,
   totalItems,
   onPageChange,
   onItemsPerPageChange,
-  hasNextPage,
-  hasPrevPage,
 }: PaginationControlsProps) {
-  // BLOCK 3.1: Calculations for Display
+  const { theme } = useTheme();
+
   const startItem = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
   const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
-  // BLOCK 3.2: Render Logic
   return (
-    <div className="flex items-center justify-between p-4">
-      <div className="flex items-center gap-2">
-        <Typography variant="small">Rows per page:</Typography>
-        <div className="w-20">
-          <Select
-            value={String(itemsPerPage)}
-            onChange={(value) => onItemsPerPageChange(value || "25")}
-            placeholder={undefined}
-            onPointerEnterCapture={undefined}
-            onPointerLeaveCapture={undefined}
-          >
-            <Option value="25">25</Option>
-            <Option value="50">50</Option>
-            <Option value="100">100</Option>
-          </Select>
-        </div>
-      </div>
-
-      <Typography color="gray" className="font-normal">
-        Showing {startItem}-{endItem} of {totalItems}
+    <div className={`flex items-center justify-between p-4 border-t ${theme.borderColor}`}>
+      <Typography variant="small" className={theme.text}>
+        Showing {startItem} to {endItem} of {totalItems} entries
       </Typography>
 
       <div className="flex items-center gap-4">
+        {/* --- DARK MODE FIX for the dropdown --- */}
+        <select
+          value={itemsPerPage}
+          onChange={(e) => onItemsPerPageChange(Number(e.target.value))}
+          className={`p-2 border rounded-md ${theme.borderColor} ${theme.cards} ${theme.text}`}
+        >
+          {[25, 50, 75, 100].map(size => (
+            <option key={size} value={size}>
+              {size} per page
+            </option>
+          ))}
+        </select>
+
+        {/* --- DARK MODE FIX for the buttons --- */}
         <Button
           variant="text"
-          className="flex items-center gap-2"
-          onClick={() => onPageChange("prev")}
-          disabled={!hasPrevPage}
-          placeholder={undefined}
-          onPointerEnterCapture={undefined}
-          onPointerLeaveCapture={undefined}
+          className={`flex items-center gap-2 ${theme.buttonText}`}
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage <= 1}
         >
           <ArrowLeftIcon strokeWidth={2} className="h-4 w-4" /> Previous
         </Button>
+        <Typography color="gray" className={`font-normal ${theme.text}`}>
+          Page <strong className={theme.text}>{currentPage}</strong> of{" "}
+          <strong className={theme.text}>{totalPages || 1}</strong>
+        </Typography>
         <Button
           variant="text"
-          className="flex items-center gap-2"
-          onClick={() => onPageChange("next")}
-          disabled={!hasNextPage}
-          placeholder={undefined}
-          onPointerEnterCapture={undefined}
-          onPointerLeaveCapture={undefined}
+          className={`flex items-center gap-2 ${theme.buttonText}`}
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage >= totalPages}
         >
           Next <ArrowRightIcon strokeWidth={2} className="h-4 w-4" />
         </Button>

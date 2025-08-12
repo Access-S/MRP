@@ -17,12 +17,12 @@ export const getPurchaseOrders = async (req: Request, res: Response) => {
           search_term: searchQuery,
           status_filter: statusFilter
         }, { count: 'exact' }
-      )
-      .select(`*, product:products(product_code, description), statuses:po_status_history(status)`)
+      );
+
+    const { data, error, count } = await query
       .order('sequence', { ascending: sortDirection === 'asc' })
       .range(offset, offset + limit - 1);
-
-    const { data, error, count } = await query;
+      
     if (error) throw error;
 
     res.status(200).json({
@@ -41,25 +41,30 @@ export const getPurchaseOrders = async (req: Request, res: Response) => {
   }
 };
 
-// BLOCK 3: updatePoStatus Function
-export const updatePoStatus = async (req: Request, res: Response) => {
+// BLOCK 3: getPurchaseOrderById Function (MODIFIED)
+export const getPurchaseOrderById = async (req: Request, res: Response) => {
   try {
     const { poId } = req.params;
-    const { status } = req.body;
-    if (!status) { return res.status(400).json({ message: 'Status is required.' }); }
-
-    const { data, error } = await supabase.rpc('toggle_po_status', {
-      target_po_id: poId,
-      status_to_toggle: status
-    });
+    const { data, error } = await supabase
+      .from('purchase_orders')
+      .select(`
+        *, 
+        product:products (
+            *, 
+            bom_components(*)
+        ), 
+        statuses:po_status_history(status)
+      `)
+      .eq('id', poId)
+      .single();
 
     if (error) throw error;
-    const updatedStatuses = data.length > 0 && data[0].statuses ? data[0].statuses : ['Open'];
-    res.status(200).json({ statuses: updatedStatuses });
+    if (!data) return res.status(404).json({ message: 'Purchase order not found.' });
 
+    res.status(200).json(data);
   } catch (error: any) {
-    console.error('Error updating PO status:', error);
-    res.status(500).json({ status: 'error', message: 'Failed to update PO status.', error: error.message });
+    console.error('Error fetching single PO:', error);
+    res.status(500).json({ message: 'Failed to fetch purchase order.', error: error.message });
   }
 };
 
@@ -85,15 +90,13 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
         p_customer_amount: customerAmount
     });
     
-    if (rpcError) {
-        return res.status(400).json({ message: rpcError.message });
-    }
+    if (rpcError) { return res.status(400).json({ message: rpcError.message }); }
 
     const newPoId = rpcData[0].created_po_id;
 
     const { data: newPo, error: fetchError } = await supabase
         .from('purchase_orders')
-        .select(`*, product:products(product_code, description), statuses:po_status_history(status)`)
+        .select(`*, product:products(*), statuses:po_status_history(status)`)
         .eq('id', newPoId)
         .single();
     
@@ -104,5 +107,86 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error creating PO:', error);
     res.status(500).json({ status: 'error', message: 'Failed to create purchase order.', error: error.message });
+  }
+};
+
+// BLOCK 5: updatePurchaseOrder Function (NEW)
+export const updatePurchaseOrder = async (req: Request, res: Response) => {
+  try {
+    const { poId } = req.params;
+    const {
+      poNumber, customerName, poCreatedDate,
+      poReceivedDate, orderedQtyPieces, customerAmount
+    } = req.body;
+
+    const { data: rpcData, error: rpcError } = await supabase.rpc('update_po_details', {
+        p_po_id: poId,
+        p_po_number: poNumber,
+        p_customer_name: customerName,
+        p_po_created_date: poCreatedDate,
+        p_po_received_date: poReceivedDate,
+        p_ordered_qty_pieces: orderedQtyPieces,
+        p_customer_amount: customerAmount
+    });
+
+    if (rpcError) { return res.status(400).json({ message: rpcError.message }); }
+
+    const updatedPoId = rpcData[0].updated_po_id;
+
+    const { data: updatedPo, error: fetchError } = await supabase
+        .from('purchase_orders')
+        .select(`*, product:products(*), statuses:po_status_history(status)`)
+        .eq('id', updatedPoId)
+        .single();
+    
+    if (fetchError) throw fetchError;
+
+    res.status(200).json(updatedPo);
+
+  } catch (error: any) {
+    console.error('Error updating PO:', error);
+    res.status(500).json({ message: 'Failed to update purchase order.', error: error.message });
+  }
+};
+
+// BLOCK 6: updatePoStatus Function
+export const updatePoStatus = async (req: Request, res: Response) => {
+  try {
+    const { poId } = req.params;
+    const { status } = req.body;
+    if (!status) { return res.status(400).json({ message: 'Status is required.' }); }
+
+    const { data, error } = await supabase.rpc('toggle_po_status', {
+      target_po_id: poId,
+      status_to_toggle: status
+    });
+
+    if (error) throw error;
+    const updatedStatuses = data.length > 0 && data[0].statuses ? data[0].statuses : ['Open'];
+    res.status(200).json({ statuses: updatedStatuses });
+
+  } catch (error: any) {
+    console.error('Error updating PO status:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to update PO status.', error: error.message });
+  }
+};
+
+// BLOCK 7: deletePurchaseOrder Function
+export const deletePurchaseOrder = async (req: Request, res: Response) => {
+  try {
+    const { poId } = req.params;
+
+    const { error } = await supabase
+      .from('purchase_orders')
+      .delete()
+      .eq('id', poId);
+
+    if (error) throw error;
+
+    res.status(204).send();
+
+  } catch (error: any) {
+    console.error('Error deleting PO:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to delete purchase order.', error: error.message });
   }
 };

@@ -1,5 +1,5 @@
 // BLOCK 1: Imports
-import { useState } from "react";
+import React, { useState } from "react"; // <-- THIS LINE WAS MISSING. I APOLOGIZE.
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { Sidebar } from "./components/Sidebar";
 import { DashboardPage } from "./components/pages/DashboardPage";
@@ -9,6 +9,7 @@ import { ForecastsPage } from "./components/pages/ForecastsPage";
 import { SohPage } from "./components/pages/SohPage";
 import { InventoryPage } from "./components/pages/InventoryPage";
 import { Toaster } from "react-hot-toast";
+import { createPortal } from "react-dom";
 
 // BLOCK 2: Type Definitions
 export type Page =
@@ -21,7 +22,32 @@ export type Page =
   | "analytics"
   | "reporting";
 
-// BLOCK 3: AppLayout Component (Full-Width)
+// BLOCK 3: A new, dedicated component for our Toaster
+function ToasterPortal() {
+  const [mountNode, setMountNode] = useState<HTMLElement | null>(null);
+
+  React.useEffect(() => {
+    setMountNode(document.body);
+  }, []);
+  
+  const toaster = (
+    <Toaster
+      position="top-right"
+      containerStyle={{
+        zIndex: 9999,
+      }}
+      toastOptions={{
+        success: { style: { background: "#28a745", color: "white" } },
+        error: { style: { background: "#dc3545", color: "white" } },
+      }}
+    />
+  );
+
+  return mountNode ? createPortal(toaster, mountNode) : toaster;
+}
+
+
+// BLOCK 4: AppLayout Component (Full-Width)
 function AppLayout() {
   const { theme } = useTheme();
   const [activePage, setActivePage] = useState<Page>("dashboard");
@@ -33,6 +59,8 @@ function AppLayout() {
     inventory: "Inventory Planning Dashboard",
     forecasts: "Sales Forecasts",
     soh: "Stock On Hand",
+    analytics: "Analytics",
+    reporting: "Reporting"
   };
 
   return (
@@ -47,9 +75,7 @@ function AppLayout() {
           {pageTitles[activePage]}
         </h1>
       </div>
-
-      {/* --- THIS IS THE FIX --- */}
-      {/* The padding is now on the main, and the max-width container is gone. */}
+      
       <main className="p-4 md:p-8">
         {activePage === "dashboard" && <DashboardPage />}
         {activePage === "products" && <ProductsPage />}
@@ -58,26 +84,19 @@ function AppLayout() {
         {activePage === "soh" && <SohPage />}
         {activePage === "inventory" && <InventoryPage />}
       </main>
-      {/* --- END OF FIX --- */}
     </div>
   );
 }
 
-// BLOCK 4: App Component
+// BLOCK 5: App Component
 function App() {
   return (
     <ThemeProvider>
       <AppLayout />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          success: { style: { background: "#28a745", color: "white" } },
-          error: { style: { background: "#dc3545", color: "white" } },
-        }}
-      />
+      <ToasterPortal />
     </ThemeProvider>
   );
 }
 
-// BLOCK 5: Default Export
+// BLOCK 6: Default Export
 export default App;

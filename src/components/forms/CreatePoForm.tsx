@@ -1,11 +1,11 @@
 // BLOCK 1: Imports
 import React, { useState } from "react";
-import toast from "react-hot-toast";
 import {
   Button, Dialog, DialogHeader, DialogBody, DialogFooter,
   Input, Typography,
 } from "@material-tailwind/react";
 import { createPo } from "../../services/api.service";
+import { FormAlert } from "../dialogs/FormAlert"; // <-- Import our new component
 
 // BLOCK 2: Interface and Component Definition
 interface CreatePoFormProps {
@@ -28,6 +28,7 @@ export function CreatePoForm({
   const [orderedQtyPieces, setOrderedQtyPieces] = useState<number | string>("");
   const [customerAmount, setCustomerAmount] = useState<number | string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(""); // <-- New state for the alert
 
   // BLOCK 4: Handlers
   const resetForm = () => {
@@ -39,6 +40,7 @@ export function CreatePoForm({
     setOrderedQtyPieces("");
     setCustomerAmount("");
     setIsSubmitting(false);
+    setErrorMessage(""); // Reset error on close
   };
 
   const handleClose = () => {
@@ -47,13 +49,14 @@ export function CreatePoForm({
   };
 
   const handleSubmit = async () => {
+    setErrorMessage(""); // Clear previous errors on new submission
+    
     if (!poNumber || !productCode || !customerName || !poCreatedDate || !poReceivedDate || !orderedQtyPieces || !customerAmount) {
-      toast.error("Please fill out all required fields.");
+      setErrorMessage("Please fill out all required fields.");
       return;
     }
 
     setIsSubmitting(true);
-    const loadingToast = toast.loading("Submitting PO...");
 
     const poData = {
       poNumber: poNumber.trim(),
@@ -67,15 +70,12 @@ export function CreatePoForm({
 
     try {
       const newPo = await createPo(poData);
-      toast.dismiss(loadingToast);
-      toast.success(`PO ${newPo.po_number} created successfully!`);
-      
+      // We will show a success toast on the main page after the modal closes
       onPoCreated();
       handleClose();
 
     } catch (err: any) {
-      toast.dismiss(loadingToast);
-      toast.error(err.message || "Failed to create PO. Please try again.");
+      setErrorMessage(err.message || "An unexpected error occurred. Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -101,6 +101,15 @@ export function CreatePoForm({
         <Typography variant="small" color="gray" className="mt-2">
           System calculations and status will be determined upon submission.
         </Typography>
+
+        {/* --- RENDER THE ALERT WHEN THERE'S AN ERROR --- */}
+        {errorMessage && (
+          <FormAlert
+            type="error"
+            message={errorMessage}
+            onDismiss={() => setErrorMessage("")}
+          />
+        )}
       </DialogBody>
       <DialogFooter>
         <Button variant="text" color="red" onClick={handleClose} disabled={isSubmitting}>

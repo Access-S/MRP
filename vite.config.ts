@@ -6,9 +6,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: '0.0.0.0',
+    hmr: {
+        clientPort: 443
+    },
+    allowedHosts: [
+        '5173-accesss-mrp-h4fgsbefng0.ws-us121.gitpod.io'
+    ],
     proxy: {
       '/api': {
-        target: 'https://solid-tribble-pj66gpw7957vh9p65-3001.app.github.dev',
+        target: 'https://3001-accesss-mrp-h4fgsbefng0.ws-us121.gitpod.io',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, ''),

@@ -14,10 +14,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // BLOCK 3: Middleware
-app.use(cors());
+app.use(cors()); // A simple cors() is all that's needed now.
 app.use(express.json());
 
-// BLOCK 4: API Routes
+// BLOCK 4: API Routes (NO '/api' prefix)
 app.use(purchaseOrderRoutes);
 app.use(productRoutes);
 
