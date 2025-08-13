@@ -21,13 +21,24 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS configuration
+// CORS configuration - updated for production
+const corsOrigins = [
+  process.env.CORS_ORIGIN,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  // Add your Gitpod frontend URL as backup
+  'https://5173-accesss-mrp-h4fgsbefng0.ws-us121.gitpod.io'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: corsOrigins,
   credentials: true
 }));
 
 app.use(express.json());
+
+// Trust proxy for Railway
+app.set('trust proxy', 1);
 
 // BLOCK 3: Health Check Routes
 app.get('/', (req, res) => {
