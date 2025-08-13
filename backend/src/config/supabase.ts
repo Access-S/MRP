@@ -1,21 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import logger from '../utils/logger';
 
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 
-// --- DEBUGGING LOGS ---
-console.log('--- Supabase Auth ---');
-console.log('URL Loaded:', supabaseUrl);
-// For security, we only log the first 10 characters and the length of the key.
-console.log('Service Key Loaded:', `${supabaseKey?.slice(0, 10)}... (Length: ${supabaseKey?.length})`);
-console.log('---------------------');
-// --- END DEBUGGING LOGS ---
-
 if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Supabase URL and Service Key must be defined in the .env file');
+  const error = 'Missing Supabase configuration. Check SUPABASE_URL and SUPABASE_SERVICE_KEY in .env file';
+  logger.error(error);
+  throw new Error(error);
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Validate URL format
+try {
+  new URL(supabaseUrl);
+} catch {
+  throw new Error('Invalid SUPABASE_URL format');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+});
+
+logger.info('✅ Supabase client initialized successfully');

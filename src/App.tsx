@@ -6,7 +6,7 @@ import { DashboardPage } from "./components/pages/DashboardPage";
 import { ProductsPage } from "./components/pages/ProductsPage";
 import { PurchaseOrdersPage } from "./components/pages/PurchaseOrdersPage";
 import { ForecastsPage } from "./components/pages/ForecastsPage";
-import { SohPage } from "./components/pages/SohPage";
+import SohPage from "./components/pages/SohPage";
 import { InventoryPage } from "./components/pages/InventoryPage";
 import { Toaster } from "react-hot-toast";
 import { createPortal } from "react-dom";
@@ -45,7 +45,6 @@ function ToasterPortal() {
 
   return mountNode ? createPortal(toaster, mountNode) : toaster;
 }
-
 
 // BLOCK 4: AppLayout Component (Full-Width)
 function AppLayout() {

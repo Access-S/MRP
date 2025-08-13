@@ -2,32 +2,68 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import purchaseOrderRoutes from './routes/purchaseOrder.routes';
-import productRoutes from './routes/product.routes';
-import './config/firebase';
-import { migrateProducts } from './migrations/migrate-products';
-import { migratePurchaseOrders } from './migrations/migrate-purchase-orders';
 
-// BLOCK 2: Setup
+// Import routes
+import productRoutes from './routes/product.routes';
+import purchaseOrderRoutes from './routes/purchaseOrder.routes';
+import sohRoutes from './routes/soh.routes';
+
+// Import middleware
+import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import logger from './utils/logger';
+
+// Import Supabase to initialize connection
+import './config/supabase';
+
 dotenv.config();
+
+// BLOCK 2: App Configuration
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// BLOCK 3: Middleware
-app.use(cors()); // A simple cors() is all that's needed now.
+// CORS configuration
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true
+}));
+
 app.use(express.json());
 
-// BLOCK 4: API Routes (NO '/api' prefix)
-app.use(purchaseOrderRoutes);
-app.use(productRoutes);
+// BLOCK 3: Health Check Routes
+app.get('/', (req, res) => {
+  res.json({
+    message: 'MRP System API - Powered by Supabase',
+    version: '1.0.0',
+    status: 'running',
+    database: 'Supabase',
+    timestamp: new Date().toISOString()
+  });
+});
 
-// BLOCK 5: Migration & Test Routes
-app.get('/api/migrate-products', migrateProducts);
-app.get('/api/migrate-purchase-orders', migratePurchaseOrders);
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    database: 'Supabase'
+  });
+});
 
-// BLOCK 6: Root Health Check and Server Start
-app.get('/', (req, res) => res.send('MRP Backend is running!'));
+// BLOCK 4: API Routes
+app.use('/api/products', productRoutes);
+app.use('/api/purchase-orders', purchaseOrderRoutes);
+app.use('/api/soh', sohRoutes);
+
+// BLOCK 5: Error Handling and Server Start
+// Error handling (must be last)
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  logger.info(`🚀 Server running on port ${PORT}`);
+  logger.info(`🌐 CORS Origin: ${process.env.CORS_ORIGIN}`);
+  logger.info(`📍 Environment: ${process.env.NODE_ENV}`);
+  logger.info(`🗄️  Database: Supabase`);
 });
+
+export default app;
