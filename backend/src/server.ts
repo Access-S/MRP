@@ -27,8 +27,8 @@ const corsOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   // Add your Gitpod frontend URL as backup
-  'https://5173-accesss-mrp-h4fgsbefng0.ws-us121.gitpod.io'
-].filter(Boolean);
+  'https://cuddly-waddle-5g994xrv59w6cvqqw-5173.app.github.dev'
+].filter(Boolean) as string[];
 
 app.use(cors({
   origin: corsOrigins,

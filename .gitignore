@@ -1,6 +1,5 @@
 node_modules
 
-.en
 .env.*
 !.env.example
 

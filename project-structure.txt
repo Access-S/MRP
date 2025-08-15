@@ -1,48 +1,76 @@
 .
-├── .codesandbox
-│   └── tasks.json
-├── dist
-│   ├── assets
-│   │   ├── index-B2vACFhd.js
-│   │   └── index-DA0TPsZd.css
-│   ├── index.html
-│   └── vite.svg
+├── README.md
+├── Read Me.txt
+├── backend
+│   ├── Procfile
+│   ├── database
+│   │   ├── migrations
+│   │   │   └── 001_create_soh_table.sql
+│   │   └── schema
+│   │       ├── functions.sql
+│   │       └── tables.sql
+│   ├── nixpacks.toml
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── railway.json
+│   ├── src
+│   │   ├── config
+│   │   │   └── supabase.ts
+│   │   ├── controllers
+│   │   │   ├── product.controller.ts
+│   │   │   ├── purchaseOrder.controller.ts
+│   │   │   └── soh.controller.ts
+│   │   ├── middleware
+│   │   │   ├── errorHandler.ts
+│   │   │   └── validation.ts
+│   │   ├── routes
+│   │   │   ├── product.routes.ts
+│   │   │   ├── purchaseOrder.routes.ts
+│   │   │   └── soh.routes.ts
+│   │   ├── server.ts
+│   │   └── utils
+│   │       ├── asyncHandler.ts
+│   │       └── logger.ts
+│   └── tsconfig.json
 ├── eslint.config.js
-├── .gitignore
 ├── index.html
-├── package.json
+├── mrp-backend
 ├── package-lock.json
+├── package.json
 ├── pnpm-lock.yaml
 ├── postcss.config.js
 ├── project-structure.txt
 ├── public
 │   └── vite.svg
-├── README.md
 ├── src
 │   ├── App.tsx
 │   ├── components
+│   │   ├── PaginationControls.tsx
+│   │   ├── Sidebar.tsx
 │   │   ├── dialogs
-│   │   │   └── ConfirmationDialog.tsx
+│   │   │   ├── ConfirmationDialog.tsx
+│   │   │   └── FormAlert.tsx
 │   │   ├── forms
 │   │   │   ├── CreatePoForm.tsx
 │   │   │   ├── DespatchPoForm.tsx
 │   │   │   └── EditPoForm.tsx
 │   │   ├── modals
-│   │   │   └── ExcelImportModal.tsx
-│   │   ├── pages
-│   │   │   ├── DashboardPage.tsx
-│   │   │   ├── ForecastsPage.tsx
-│   │   │   ├── InventoryPage.tsx
-│   │   │   ├── ProductsPage.tsx
-│   │   │   ├── PurchaseOrdersPage.tsx
-│   │   │   └── SohPage.tsx
-│   │   └── Sidebar.tsx
+│   │   │   ├── BomDetailModal.tsx
+│   │   │   ├── ExcelImportModal.tsx
+│   │   │   └── PoDetailModal.tsx
+│   │   └── pages
+│   │       ├── DashboardPage.tsx
+│   │       ├── ForecastsPage.tsx
+│   │       ├── InventoryPage.tsx
+│   │       ├── ProductsPage.tsx
+│   │       ├── PurchaseOrdersPage.tsx
+│   │       └── SohPage.tsx
 │   ├── contexts
 │   │   └── ThemeContext.tsx
-│   ├── firebase.config.ts
 │   ├── index.css
 │   ├── main.tsx
 │   ├── services
+│   │   ├── api.service.ts
 │   │   ├── dashboard.service.ts
 │   │   ├── forecast.service.ts
 │   │   ├── inventory.service.ts
@@ -51,6 +79,7 @@
 │   │   └── purchaseOrder.service.ts
 │   ├── styles
 │   │   └── themes.ts
+│   ├── supabase.config.ts
 │   ├── types
 │   │   └── mrp.types.ts
 │   └── vite-env.d.ts
@@ -59,4 +88,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-14 directories, 45 files
+23 directories, 66 files

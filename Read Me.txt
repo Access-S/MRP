@@ -1,0 +1,169 @@
+# MRP System
+
+A comprehensive Material Requirements Planning (MRP) system built with React frontend and Node.js backend, powered by Supabase database.
+
+## 📋 Table of Contents
+
+- [Setup Instructions for GitHub Codespaces](#setup-instructions-for-github-codespaces)
+- [Project Overview](#project-overview)
+- [Tech Stack](#tech-stack)
+- [Features](#features)
+- [Contributing](#contributing)
+
+## 🚀 Setup Instructions for GitHub Codespaces
+
+Follow these steps if you've just imported this code into your GitHub Codespace:
+
+### Prerequisites
+- GitHub Codespace environment
+- Supabase account and project
+
+### Step 1: Install Dependencies
+
+**Install Frontend Dependencies:**
+```bash
+npm install
+
+Install Backend Dependencies:
+
+cd backend
+npm install
+cd ..
+
+Step 2: Environment Configuration
+Create Frontend Environment File:
+Create a .env file in the root directory:
+
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_API_URL=https://YOUR_CODESPACE_NAME-3001.app.github.dev/api
+
+Create Backend Environment File:
+Create a .env file in the backend directory:
+
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+CORS_ORIGIN=https://YOUR_CODESPACE_NAME-5173.app.github.dev
+NODE_ENV=development
+PORT=3001
+
+Step 3: Update Codespace URLs
+Important: Replace YOUR_CODESPACE_NAME with your actual codespace URL pattern.
+
+Your codespace URLs will look like:
+
+Frontend: https://cuddly-waddle-5g994xrv59w6cvqqw-5173.app.github.dev
+Backend: https://cuddly-waddle-5g994xrv59w6cvqqw-3001.app.github.dev
+Update the following files:
+
+Frontend API Configuration (src/services/api.service.ts):
+
+const API_BASE_URL = 'https://YOUR_CODESPACE_NAME-3001.app.github.dev/api';
+
+Backend CORS Configuration (backend/src/server.ts):
+
+const corsOrigins = [
+  process.env.CORS_ORIGIN,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://YOUR_CODESPACE_NAME-5173.app.github.dev'
+].filter(Boolean) as string[];
+
+Step 4: Database Setup
+Set up Supabase Tables:
+
+Go to your Supabase project dashboard
+Navigate to SQL Editor
+Run the SQL scripts from backend/database/schema/:
+tables.sql - Creates all necessary tables
+functions.sql - Creates database functions
+Run Migrations:
+
+cd backend
+# If you have migration scripts
+npm run migrate
+
+Step 5: Start the Application
+Terminal 1 - Start Backend:
+
+cd backend
+npm run dev
+
+Terminal 2 - Start Frontend:
+
+npm run dev
+
+Step 6: Verify Setup
+Check Backend Health:
+
+Open: https://YOUR_CODESPACE_NAME-3001.app.github.dev/health
+Should return: {"status": "OK", ...}
+Check Frontend:
+
+Open: https://YOUR_CODESPACE_NAME-5173.app.github.dev
+Should load the MRP dashboard
+Test API Connection:
+
+Check browser console for any CORS errors
+Verify data loads in the dashboard
+Troubleshooting
+CORS Issues:
+
+Ensure backend .env has correct CORS_ORIGIN
+Check that both frontend and backend are running
+Verify URLs match your actual codespace URLs
+Database Connection Issues:
+
+Verify Supabase credentials in .env files
+Check Supabase project is active
+Ensure database tables are created
+Port Issues:
+
+Frontend should run on port 5173 (Vite default)
+Backend should run on port 3001
+Make sure no other services are using these ports
+
+🏗️ Project Overview
+[This section will be expanded as the project develops]
+
+🛠️ Tech Stack
+Frontend:
+
+React 18 with TypeScript
+Vite for build tooling
+Tailwind CSS for styling
+Supabase for database integration
+Backend:
+
+Node.js with Express
+TypeScript
+Supabase as database
+CORS enabled for cross-origin requests
+Database:
+
+Supabase (PostgreSQL)
+Real-time subscriptions
+Row Level Security (RLS)
+✨ Features
+Dashboard with key metrics
+Product management
+Purchase order tracking
+Stock on hand (SOH) monitoring
+Inventory forecasting
+Material Requirements Planning
+
+
+### Step 7: Generate Project Structure (Optional)
+
+To get an updated overview of the project structure and save it to a file:
+
+**Generate/Update Project Structure:**
+```bash
+# Generate project structure and save to project-structure.txt
+tree -I 'node_modules|.git|dist|build|coverage|*.log' > project-structure.txt
+
+# If tree is not installed, install it first:
+sudo apt update && sudo apt install tree
+
+# Then run the tree command above
