@@ -1,3 +1,6 @@
+// src/pages/InventoryPage.tsx
+
+// BLOCK 1: Imports
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Typography,
@@ -9,49 +12,38 @@ import {
 } from "@material-tailwind/react";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { useTheme } from "../../contexts/ThemeContext";
-import { getAllSoh } from "../../services/inventory.service";
-import { fetchAllProducts } from "../../services/api.service";
-import { getAllForecasts } from "../../services/forecast.service";
-import {
-  calculateInventoryProjections,
-  InventoryProjection,
-} from "../../services/mrp.service";
+import { mrpService, InventoryProjection } from "../../services/mrp.service";
 
+// BLOCK 2: Constants and Helper Functions
 const timeHorizon = 6;
 const getHealthColor = (soh: number) =>
   soh >= 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
 
 // BLOCK 3: Main InventoryPage Component
 export function InventoryPage() {
+  // BLOCK 4: State Management
   const { theme } = useTheme();
   const [projections, setProjections] = useState<InventoryProjection[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // BLOCK 5: Data Fetching Effect
   useEffect(() => {
-    const fetchDataAndCalculate = async () => {
+    const runAnalysis = async () => {
       setLoading(true);
       try {
-        const [components, products, forecasts] = await Promise.all([
-          getAllSoh(),
-          fetchAllProducts(),
-          getAllForecasts(),
-        ]);
-        const calculatedProjections = calculateInventoryProjections(
-          components,
-          products,
-          forecasts
-        );
+        const calculatedProjections = await mrpService.runCompleteAnalysis();
         setProjections(calculatedProjections);
       } catch (error) {
-        console.error("Failed to fetch or calculate inventory data:", error);
+        console.error("Failed to run complete MRP analysis:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchDataAndCalculate();
+    runAnalysis();
   }, []);
 
+  // BLOCK 6: Derived State for Filtering and Headers
   const filteredProjections = useMemo(() => {
     if (!searchQuery) return projections;
     const lowerQuery = searchQuery.toLowerCase();
@@ -82,6 +74,7 @@ export function InventoryPage() {
     ...monthHeaders,
   ];
 
+  // BLOCK 7: Render Logic
   return (
     <Card className={`w-full ${theme.cards} shadow-sm`}>
       <div className={`p-4 border-b ${theme.borderColor}`}>
@@ -98,7 +91,6 @@ export function InventoryPage() {
           color={theme.isDark ? "white" : "black"}
         />
       </div>
-
       <CardBody className="overflow-x-auto p-0">
         {loading ? (
           <div className="flex justify-center items-center h-96">
@@ -123,7 +115,6 @@ export function InventoryPage() {
                 ))}
               </tr>
             </thead>
-            {/* The tbody no longer has a divide class */}
             <tbody>
               {filteredProjections.map(
                 ({
@@ -134,7 +125,6 @@ export function InventoryPage() {
                   projections,
                 }) => (
                   <React.Fragment key={component.id}>
-                    {/* Row 1: Forecast Demand (standard border) */}
                     <tr className={`border-b ${theme.borderColor}`}>
                       <td className="p-2 align-top">
                         <div className="flex flex-col">
@@ -188,7 +178,6 @@ export function InventoryPage() {
                         </td>
                       ))}
                     </tr>
-                    {/* Row 2: Coverage Percentage (standard border) */}
                     <tr className={`border-b ${theme.borderColor}`}>
                       <td
                         className="p-2 font-semibold text-xs text-gray-500"
@@ -214,7 +203,6 @@ export function InventoryPage() {
                         </td>
                       ))}
                     </tr>
-                    {/* Row 3: Projected SOH (THICK bottom border) */}
                     <tr className={`border-b-4 ${theme.borderColor}`}>
                       <td
                         className="p-2 font-semibold text-xs text-gray-500"

@@ -224,6 +224,14 @@ export const fetchBomForProduct = async (productId: string): Promise<ApiResponse
   return apiClient.get<ApiResponse<any[]>>(`/products/${productId}/bom`);
 };
 
+export const fetchEnrichedBomForProduct = async (productId: string): Promise<ApiResponse<any>> => {
+  if (!productId) {
+    throw new Error('Product ID is required');
+  }
+  // This is the new function that calls our enriched BOM endpoint.
+  return apiClient.get<ApiResponse<any>>(`/products/${productId}/enriched-bom`);
+};
+
 // BLOCK 8: Utility Functions
 export const handleApiError = (error: unknown): string => {
   if (error instanceof Error) {

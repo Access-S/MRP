@@ -11,6 +11,7 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const product_routes_1 = __importDefault(require("./routes/product.routes"));
 const purchaseOrder_routes_1 = __importDefault(require("./routes/purchaseOrder.routes"));
 const soh_routes_1 = __importDefault(require("./routes/soh.routes"));
+const forecast_routes_1 = __importDefault(require("./routes/forecast.routes")); // <-- ADD THIS LINE
 // Import middleware
 const errorHandler_1 = require("./middleware/errorHandler");
 const logger_1 = __importDefault(require("./utils/logger"));
@@ -26,7 +27,7 @@ const corsOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
     // Add your Gitpod frontend URL as backup
-    'https://5173-accesss-mrp-h4fgsbefng0.ws-us121.gitpod.io'
+    'https://cuddly-waddle-5g994xrv59w6cvqqw-5173.app.github.dev'
 ].filter(Boolean);
 app.use((0, cors_1.default)({
     origin: corsOrigins,
@@ -57,6 +58,7 @@ app.get('/health', (req, res) => {
 app.use('/api/products', product_routes_1.default);
 app.use('/api/purchase-orders', purchaseOrder_routes_1.default);
 app.use('/api/soh', soh_routes_1.default);
+app.use('/api/forecasts', forecast_routes_1.default); // <-- ADD THIS LINE
 // BLOCK 5: Error Handling and Server Start
 // Error handling (must be last)
 app.use(errorHandler_1.notFoundHandler);

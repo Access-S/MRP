@@ -8,12 +8,24 @@ import * as XLSX from 'xlsx';
 // BLOCK 2: Get All SOH Records Controller
 export const getAllSoh = async (req: Request, res: Response) => {
   try {
-    logger.info('Fetching all SOH records');
+    const { search } = req.query;
     
-    const { data, error } = await supabase
+    logger.info(`Fetching SOH records with search term: "${search || 'none'}"`);
+    
+   
+    let query = supabase
       .from('soh')
       .select('*')
       .order('product_id', { ascending: true });
+
+    
+    if (search) {
+      
+      query = query.ilike('product_id', `%${search}%`);
+    }
+
+    // Execute the final query.
+    const { data, error } = await query;
 
     if (error) {
       logger.error('Supabase error fetching SOH', { error });
@@ -24,7 +36,7 @@ export const getAllSoh = async (req: Request, res: Response) => {
     
     res.status(200).json({
       success: true,
-      data,
+      data: data || [], 
       count: data?.length || 0
     });
   } catch (error: any) {
@@ -322,7 +334,7 @@ export const deleteAllSoh = async (req: Request, res: Response) => {
     const { error } = await supabase
       .from('soh')
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all records
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
     if (error) {
       logger.error('Error deleting SOH data', { error });

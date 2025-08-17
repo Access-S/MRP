@@ -42,11 +42,8 @@ export interface MrpSummary {
 class MrpService {
 
   /**
-   * The main MRP calculation engine
-   * @param components - Array of components (SOH data)
-   * @param products - Array of products with BOM data
-   * @param forecasts - Array of forecasts
-   * @returns Array of inventory projections
+   * BLOCK 3.1: The main MRP calculation engine.
+   * This is the core logic that processes demand against supply.
    */
   calculateInventoryProjections(
     components: Component[],
@@ -65,16 +62,14 @@ class MrpService {
       }
     >();
 
-    // Step 1: Aggregate data from BOMs and Forecasts
     products.forEach((product) => {
       const forecast = forecasts.find(
         (f) => f.productCode === product.productCode
       );
       if (!forecast) return;
 
-      // Use the product-level `unitsPerShipper` for all calculations
       const unitsPerShipper = product.unitsPerShipper || 0;
-      if (unitsPerShipper === 0) return; // Cannot calculate demand if this is zero
+      if (unitsPerShipper === 0) return;
 
       product.components.forEach((bomItem) => {
         if (bomItem.partType === "Bulk - Supplied") return;
@@ -94,7 +89,6 @@ class MrpService {
         componentData.descriptions.add(bomItem.partDescription);
 
         for (const month in forecast.monthlyForecast) {
-          // The forecast is for PRODUCTS (shippers), not pieces
           const forecastQtyInShippers = forecast.monthlyForecast[month];
           const requiredComponents = forecastQtyInShippers * bomItem.perShipper;
 
@@ -104,7 +98,6 @@ class MrpService {
       });
     });
 
-    // Step 2: Create the final projections for components that we have stock for
     const inventoryProjections: InventoryProjection[] = [];
 
     components.forEach((component) => {
@@ -114,7 +107,6 @@ class MrpService {
       let currentSoh = component.stock;
       const sortedMonths = Object.keys(componentData.demand).sort();
 
-      // Calculate various demand metrics
       const fourMonthDemand = sortedMonths
         .slice(0, 4)
         .reduce((sum, month) => sum + (componentData.demand[month] || 0), 0);
@@ -128,7 +120,6 @@ class MrpService {
 
       const netFourMonthDemand = Math.max(0, fourMonthDemand - currentSoh);
 
-      // Determine overall health
       let overallHealth: "Healthy" | "Risk" | "Shortage";
       let priority: "High" | "Medium" | "Low";
       let recommendedAction: string;
@@ -147,14 +138,12 @@ class MrpService {
         recommendedAction = `URGENT: Order ${Math.ceil(netFourMonthDemand)} units immediately`;
       }
 
-      // Calculate monthly projections with enhanced metrics
       const projections: MonthlyProjection[] = sortedMonths.map((month) => {
         const demand = componentData.demand[month];
         const coveragePercentage = demand > 0 ? Math.min(1, currentSoh / demand) * 100 : 100;
         const projectedSoh = Math.max(0, currentSoh - demand);
         const shortfall = Math.max(0, demand - currentSoh);
         
-        // Calculate days of coverage (assuming 30 days per month)
         const dailyDemand = demand / 30;
         const daysOfCoverage = dailyDemand > 0 ? Math.floor(currentSoh / dailyDemand) : 30;
         
@@ -190,23 +179,24 @@ class MrpService {
   }
 
   /**
-   * Runs a complete MRP analysis by fetching all required data
-   * @returns Promise<InventoryProjection[]>
+   * BLOCK 3.2: Orchestration method to run a complete analysis. (UPDATED)
+   * Fetches all required data from various services and executes the calculation.
    */
   async runCompleteAnalysis(): Promise<InventoryProjection[]> {
     try {
       console.log('🔄 Starting complete MRP analysis...');
 
-      // Fetch all required data in parallel
+      // Fetch all data sources in parallel for efficiency.
       const [components, products, forecasts] = await Promise.all([
         inventoryService.getAllSoh(),
         productService.getAllProducts(),
-        forecastService.getAllForecasts()
+        // MODIFIED: Use the new method to get calculation-friendly data.
+        forecastService.getRawForecasts() 
       ]);
 
       console.log(`📊 Data fetched: ${components.length} components, ${products.length} products, ${forecasts.length} forecasts`);
 
-      // Run the MRP calculation
+      // Run the MRP calculation with the fetched data.
       const projections = this.calculateInventoryProjections(components, products, forecasts);
 
       console.log('✅ Complete MRP analysis finished');
@@ -218,9 +208,8 @@ class MrpService {
   }
 
   /**
-   * Gets MRP summary statistics
-   * @param projections - Array of inventory projections
-   * @returns MrpSummary object
+   * BLOCK 3.3: Utility and Reporting methods.
+   * These methods operate on the results of the MRP calculation.
    */
   getMrpSummary(projections: InventoryProjection[]): MrpSummary {
     const healthyCount = projections.filter(p => p.overallHealth === 'Healthy').length;
@@ -244,12 +233,6 @@ class MrpService {
     };
   }
 
-  /**
-   * Filters projections by health status
-   * @param projections - Array of inventory projections
-   * @param health - Health status to filter by
-   * @returns Filtered array of projections
-   */
   filterByHealth(
     projections: InventoryProjection[], 
     health: "Healthy" | "Risk" | "Shortage"
@@ -257,12 +240,6 @@ class MrpService {
     return projections.filter(p => p.overallHealth === health);
   }
 
-  /**
-   * Filters projections by priority
-   * @param projections - Array of inventory projections
-   * @param priority - Priority to filter by
-   * @returns Filtered array of projections
-   */
   filterByPriority(
     projections: InventoryProjection[], 
     priority: "High" | "Medium" | "Low"
@@ -270,12 +247,6 @@ class MrpService {
     return projections.filter(p => p.priority === priority);
   }
 
-  /**
-   * Searches projections by part code or description
-   * @param projections - Array of inventory projections
-   * @param searchTerm - Term to search for
-   * @returns Filtered array of projections
-   */
   searchProjections(projections: InventoryProjection[], searchTerm: string): InventoryProjection[] {
     if (!searchTerm || searchTerm.trim().length < 2) {
       return projections;
@@ -289,11 +260,6 @@ class MrpService {
     );
   }
 
-  /**
-   * Generates purchase recommendations based on MRP analysis
-   * @param projections - Array of inventory projections
-   * @returns Array of purchase recommendations
-   */
   generatePurchaseRecommendations(projections: InventoryProjection[]): {
     partCode: string;
     description: string;
@@ -312,7 +278,6 @@ class MrpService {
         recommendedQuantity: Math.ceil(p.netFourMonthDemand),
         priority: p.priority,
         reason: p.recommendedAction,
-        // estimatedCost could be calculated if you have pricing data
       }))
       .sort((a, b) => {
         const priorityOrder = { High: 3, Medium: 2, Low: 1 };
@@ -320,11 +285,6 @@ class MrpService {
       });
   }
 
-  /**
-   * Exports MRP data to a format suitable for Excel/CSV
-   * @param projections - Array of inventory projections
-   * @returns Array of objects suitable for export
-   */
   exportMrpData(projections: InventoryProjection[]): any[] {
     return projections.map(p => ({
       'Part Code': p.component.partCode,
@@ -339,7 +299,6 @@ class MrpService {
       'Total Annual Demand': p.totalAnnualDemand,
       'Average Monthly Demand': p.averageMonthlyDemand,
       'Recommended Action': p.recommendedAction,
-      // Add monthly projections as separate columns
       ...p.projections.reduce((acc, proj, index) => {
         acc[`Month ${index + 1} Demand`] = proj.totalDemand;
         acc[`Month ${index + 1} Coverage %`] = proj.coveragePercentage;
@@ -349,7 +308,6 @@ class MrpService {
     }));
   }
 }
-
 // BLOCK 4: Export singleton instance
 export const mrpService = new MrpService();
 

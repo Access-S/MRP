@@ -1,30 +1,45 @@
+// src/pages/ProductsPage.tsx
+
 // BLOCK 1: Imports
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Card, Typography, CardBody, Spinner, Input, IconButton
 } from "@material-tailwind/react";
 import { Product } from "../../types/mrp.types";
-import { fetchAllProducts } from "../../services/api.service";
+import { productService } from "../../services/product.service"; // <-- Use the new service
 import { useTheme } from "../../contexts/ThemeContext";
 import { MagnifyingGlassIcon, ArrowTopRightOnSquareIcon } from "@heroicons/react/24/outline";
-import { BomDetailModal } from "../modals/BomDetailModal"; // <-- Import the new modal
+import { BomDetailModal } from "../modals/BomDetailModal";
+import toast from "react-hot-toast"; // <-- Import toast for error handling
+
 // BLOCK 2: Main ProductsPage Component
 export function ProductsPage() {
   const { theme } = useTheme();
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]); // <-- Use the Product type
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [productToView, setProductToView] = useState<any | null>(null);
+  const [productToView, setProductToView] = useState<Product | null>(null);
   const [isBomModalOpen, setIsBomModalOpen] = useState(false);
 
+  // BLOCK 3: Constants
   const TABLE_HEAD = ["View", "Product Code", "Description", "Hourly Run Rate"];
 
+  // BLOCK 4: Data Fetching and Handlers
   useEffect(() => {
-    setLoading(true);
-    fetchAllProducts()
-      .then(fetchedProducts => setProducts(fetchedProducts))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        // Use the new, safe service function. It will always return an array.
+        const fetchedProducts = await productService.getAllProducts();
+        setProducts(fetchedProducts);
+      } catch (error) {
+        toast.error("Failed to load product data.");
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
   const filteredProducts = useMemo(() => {
@@ -37,11 +52,12 @@ export function ProductsPage() {
     );
   }, [products, searchQuery]);
 
-  const handleOpenBomModal = (product: any | null) => {
+  const handleOpenBomModal = (product: Product | null) => {
     setProductToView(product);
     setIsBomModalOpen(!!product);
   };
 
+  // BLOCK 5: Render Logic
   if (loading) {
     return (<div className="flex justify-center items-center h-64"><Spinner className="h-12 w-12" /></div>);
   }
@@ -64,13 +80,12 @@ export function ProductsPage() {
               <thead className={`border-b-2 ${theme.borderColor}`}>
                 <tr>
                   {TABLE_HEAD.map((head, index) => {
-                    // --- HEADER CELLS HAVE SPACIOUS PADDING (p-4) ---
                     let thClasses = `${theme.tableHeaderBg} p-4 text-center`; 
                     if (index < TABLE_HEAD.length - 1) {
                       thClasses += ` border-r ${theme.borderColor}`;
                     }
                     if (head === "Description") {
-                        thClasses = thClasses.replace('text-center', 'text-center');
+                        thClasses = thClasses.replace('text-center', 'text-left');
                     }
                     return (
                       <th key={head} className={thClasses}>
@@ -84,9 +99,8 @@ export function ProductsPage() {
               </thead>
               <tbody>
                 {filteredProducts.map((product) => {
-                  // --- BODY CELLS HAVE TIGHT PADDING (p-2) ---
                   const getCellClasses = (isLast = false, align = 'center') => {
-                    let classes = `p-1 border-b ${theme.borderColor} text-${align}`; // Use p-2 for tight rows
+                    let classes = `p-1 border-b ${theme.borderColor} text-${align}`;
                     if (!isLast) {
                       classes += ` border-r`;
                     }
@@ -111,7 +125,7 @@ export function ProductsPage() {
           {filteredProducts.length === 0 && !loading && (
             <div className="text-center p-8">
               <Typography color="gray" className={theme.text}>
-                No products found matching "{searchQuery}"
+                {searchQuery ? `No products found matching "${searchQuery}"` : "No products found."}
               </Typography>
             </div>
           )}

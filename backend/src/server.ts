@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import productRoutes from './routes/product.routes';
 import purchaseOrderRoutes from './routes/purchaseOrder.routes';
 import sohRoutes from './routes/soh.routes';
-
+import forecastRoutes from './routes/forecast.routes';
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import logger from './utils/logger';
@@ -64,6 +64,7 @@ app.get('/health', (req, res) => {
 app.use('/api/products', productRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/soh', sohRoutes);
+app.use('/api/forecasts', forecastRoutes);
 
 // BLOCK 5: Error Handling and Server Start
 // Error handling (must be last)

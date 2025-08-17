@@ -8,15 +8,20 @@ import * as XLSX from "xlsx";
 class InventoryService {
 
   /**
-   * Fetches all SOH records from the backend API
+   * Fetches all SOH records from the backend API, with optional search.
+   * @param search - Optional search term to filter by product_id.
    * @returns Promise<Component[]> - Array of inventory components
    */
-  async getAllSoh(): Promise<Component[]> {
+  async getAllSoh(search: string = ''): Promise<Component[]> {
     try {
-      const response: ApiResponse<Component[]> = await apiClient.get('/soh');
+      // Build the endpoint URL with the search parameter if it exists.
+      const params = new URLSearchParams({ search });
+      const endpoint = `/soh?${params.toString()}`;
+      
+      const response: ApiResponse<Component[]> = await apiClient.get(endpoint);
       
       if (response.success && response.data) {
-        console.log(`✅ Fetched ${response.data.length} SOH records from API`);
+        console.log(`✅ Fetched ${response.data.length} SOH records from API for search: "${search}"`);
         return response.data;
       }
       
@@ -289,7 +294,7 @@ class InventoryService {
 export const inventoryService = new InventoryService();
 
 // BLOCK 4: Export Individual Functions for Backward Compatibility
-export const getAllSoh = () => inventoryService.getAllSoh();
+export const getAllSoh = (search: string = '') => inventoryService.getAllSoh(search);
 export const getSohSummary = () => inventoryService.getSohSummary();
 export const analyzeExcelHeaders = (file: File) => inventoryService.analyzeExcelHeaders(file);
 export const importSohData = (file: File, selectedColumns: string[], replaceExisting?: boolean) => 

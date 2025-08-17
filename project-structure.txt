@@ -2,17 +2,14 @@
 ├── README.md
 ├── Read Me.txt
 ├── backend
-│   ├── Procfile
 │   ├── database
 │   │   ├── migrations
 │   │   │   └── 001_create_soh_table.sql
 │   │   └── schema
 │   │       ├── functions.sql
 │   │       └── tables.sql
-│   ├── nixpacks.toml
 │   ├── package-lock.json
 │   ├── package.json
-│   ├── railway.json
 │   ├── src
 │   │   ├── config
 │   │   │   └── supabase.ts
@@ -34,7 +31,6 @@
 │   └── tsconfig.json
 ├── eslint.config.js
 ├── index.html
-├── mrp-backend
 ├── package-lock.json
 ├── package.json
 ├── pnpm-lock.yaml
@@ -88,4 +84,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-23 directories, 66 files
+22 directories, 63 files

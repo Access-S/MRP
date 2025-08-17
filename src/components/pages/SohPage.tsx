@@ -39,7 +39,7 @@ interface SohSummary {
 }
 
 // BLOCK 3: Constants
-const TABLE_HEAD = ["Product ID", "Description", "Stock on Hand", "Default UOM", "Locations", "EAN", "Weight KG", "Volume M3"];
+const TABLE_HEAD = ["Product Code", "Description", "Stock on Hand", "Default UOM", "Locations", "EAN", "Weight KG", "Volume M3"];
 
 // BLOCK 4: Main SOH Page Component
 export function SohPage() {
@@ -63,20 +63,23 @@ export function SohPage() {
   // Confirmation dialog states
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  // BLOCK 5: Data Fetching Functions
-  const fetchSohData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await getAllSoh();
-      setSohData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch SOH data');
-      toast.error('Failed to fetch SOH data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // BLOCK 5: Data Fetching and Effects
+const [searchQuery, setSearchQuery] = useState("");
+const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+const fetchSohData = async (search: string) => {
+  try {
+    setLoading(true);
+    setError(null);
+    const data = await getAllSoh(search);
+    setSohData(data);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to fetch SOH data');
+    toast.error('Failed to fetch SOH data');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchSummary = async () => {
     try {
@@ -88,9 +91,17 @@ export function SohPage() {
   };
 
   useEffect(() => {
-    fetchSohData();
+  const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 500);
+  return () => clearTimeout(timer);
+}, [searchQuery]);
+
+// Main data fetching effect, now depends on debounced search
+useEffect(() => {
+  fetchSohData(debouncedSearchQuery);
+  if (debouncedSearchQuery === "") { 
     fetchSummary();
-  }, []);
+  }
+}, [debouncedSearchQuery]);
 
   // BLOCK 6: File Upload and Delete Handlers
 const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -387,157 +398,113 @@ const renderImportResult = () => {
   );
 };
     // BLOCK 8: Main Render
-  if (loading && sohData.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Spinner className="h-12 w-12" />
-      </div>
-    );
-  }
+return (
+  <>
+    {renderSummaryCards()}
+    {renderFileUpload()}
+    {renderImportResult()}
 
-  return (
-    <>
-      {renderSummaryCards()}
-      {renderFileUpload()}
-      {renderImportResult()}
-
-      <Card className={`w-full ${theme.cards} shadow-sm`}>
-        <div className={`flex items-center justify-between p-4 border-b ${theme.borderColor}`}>
-          <div>
-            <Typography variant="h5" className={theme.text}>Stock on Hand Data</Typography>
-            <Typography color="gray" className={`mt-1 font-normal ${theme.text} opacity-80`}>
-              Manage inventory stock levels and product information.
-            </Typography>
-          </div>
-          <div className="flex items-center gap-2">
-            <Typography variant="small" className={`font-normal ${theme.text}`}>
-              Total Records: {sohData.length}
-            </Typography>
-          </div>
+    <Card className={`w-full ${theme.cards} shadow-sm`}>
+      <div className={`flex flex-wrap items-center justify-between gap-4 p-4 border-b ${theme.borderColor}`}>
+        <div>
+          <Typography variant="h5" className={theme.text}>Stock on Hand Data</Typography>
+          <Typography color="gray" className={`mt-1 font-normal ${theme.text} opacity-80`}>
+            Manage inventory stock levels and product information.
+          </Typography>
         </div>
+        <div className="w-full sm:w-72">
+          <Input
+            label="Search by Product ID"
+            icon={<MagnifyingGlassIcon className="h-5 w-5" />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            color={theme.isDark ? "white" : "black"}
+          />
+        </div>
+      </div>
 
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Spinner className="h-12 w-12" />
-          </div>
-        ) : sohData.length > 0 ? (
-          <CardBody className="overflow-x-auto p-0">
-            <div className={`border-2 ${theme.borderColor} rounded-lg m-4`}>
-              <table className="w-full table-auto text-left">
-                <thead className={`border-b-2 ${theme.borderColor}`}>
-                  <tr>
-                    {TABLE_HEAD.map((head, index) => {
-                      let thClasses = `${theme.tableHeaderBg} p-4 text-center border-r ${theme.borderColor}`;
-                      let fontClasses = `font-bold text-base`;
-                      
-                      if (head === 'Description') {
-                        thClasses = thClasses.replace('text-center', 'text-left');
-                      }
-                      
-                      const style: React.CSSProperties = { minWidth: '120px' };
-                      if (head === 'Product ID') style.minWidth = '150px';
-                      if (head === 'Description') style.minWidth = '300px';
-                      if (head === 'Stock on Hand') style.minWidth = '130px';
-                      if (head === 'Default UOM') style.minWidth = '120px';
-                      if (head === 'Locations') style.minWidth = '150px';
-                      if (head === 'EAN') style.minWidth = '150px';
-                      if (head === 'Weight KG') style.minWidth = '100px';
-                      if (head === 'Volume M3') style.minWidth = '100px';
-
-                      return (
-                        <th key={head} className={thClasses} style={style}>
-                          <Typography variant="small" className={`${fontClasses} ${theme.text}`}>
-                            {head}
-                          </Typography>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sohData.slice(0, 100).map((item, index) => {
-                    const getCellClasses = (isLast = false, align = 'center') => {
-                      let classes = `p-1 border-b ${theme.borderColor} text-${align}`;
-                      if (!isLast) {
-                        classes += ` border-r ${theme.borderColor}`;
-                      }
-                      return classes;
-                    };
-
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <Spinner className="h-12 w-12" />
+        </div>
+      ) : sohData.length > 0 ? (
+        <CardBody className="overflow-x-auto p-0">
+          <div className={`border-2 ${theme.borderColor} rounded-lg m-4`}>
+            <table className="w-full table-auto text-left">
+              <thead className={`border-b-2 ${theme.borderColor}`}>
+                <tr>
+                  {TABLE_HEAD.map((head, index) => {
+                    let thClasses = `${theme.tableHeaderBg} p-4 text-center border-r ${theme.borderColor}`;
+                    let fontClasses = `font-bold text-base`;
+                    if (head === 'Description') {
+                      thClasses = thClasses.replace('text-center', 'text-left');
+                    }
+                    const style: React.CSSProperties = { minWidth: '120px' };
+                    if (head === 'Product ID') style.minWidth = '150px';
+                    if (head === 'Description') style.minWidth = '300px';
+                    if (head === 'Stock on Hand') style.minWidth = '130px';
+                    if (head === 'Default UOM') style.minWidth = '120px';
+                    if (head === 'Locations') style.minWidth = '150px';
+                    if (head === 'EAN') style.minWidth = '150px';
+                    if (head === 'Weight KG') style.minWidth = '100px';
+                    if (head === 'Volume M3') style.minWidth = '100px';
                     return (
-                      <tr key={item.id || index} className={theme.hoverBg}>
-                        <td className={getCellClasses()}>
-                          <Typography variant="body" className={`font-normal ${theme.text}`}>
-                            {(item as any).product_id || '-'}
-                          </Typography>
-                        </td>
-                        <td className={getCellClasses(false, 'left')}>
-                          <Typography variant="body" className={`font-normal ${theme.text}`}>
-                            {(item as any).description || '-'}
-                          </Typography>
-                        </td>
-                        <td className={getCellClasses()}>
-                          <Typography variant="body" className={`font-semibold ${theme.text}`}>
-                            {(item as any).stock_on_hand !== undefined ? Number((item as any).stock_on_hand).toLocaleString() : '-'}
-                          </Typography>
-                        </td>
-                        <td className={getCellClasses()}>
-                          <Typography variant="body" className={`font-normal ${theme.text}`}>
-                            {(item as any).default_uom || '-'}
-                          </Typography>
-                        </td>
-                        <td className={getCellClasses()}>
-                          <Typography variant="body" className={`font-normal ${theme.text}`}>
-                            {(item as any).locations || '-'}
-                          </Typography>
-                        </td>
-                        <td className={getCellClasses()}>
-                          <Typography variant="body" className={`font-normal ${theme.text}`}>
-                            {(item as any).ean || '-'}
-                          </Typography>
-                        </td>
-                        <td className={getCellClasses()}>
-                          <Typography variant="body" className={`font-normal ${theme.text}`}>
-                            {(item as any).weight_kg !== undefined ? Number((item as any).weight_kg).toFixed(2) : '-'}
-                          </Typography>
-                        </td>
-                        <td className={getCellClasses(true)}>
-                          <Typography variant="body" className={`font-normal ${theme.text}`}>
-                            {(item as any).volume_m3 !== undefined ? Number((item as any).volume_m3).toFixed(3) : '-'}
-                          </Typography>
-                        </td>
-                      </tr>
+                      <th key={head} className={thClasses} style={style}>
+                        <Typography variant="small" className={`${fontClasses} ${theme.text}`}>
+                          {head}
+                        </Typography>
+                      </th>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          </CardBody>
-        ) : (
-          <div className="p-8 text-center">
-            <Typography color="gray" className={theme.text}>
-              No SOH data found. Import some data to get started.
-            </Typography>
+                </tr>
+              </thead>
+              <tbody>
+                {sohData.map((item, index) => {
+                  const getCellClasses = (isLast = false, align = 'center') => {
+                    let classes = `p-1 border-b ${theme.borderColor} text-${align}`;
+                    if (!isLast) {
+                      classes += ` border-r ${theme.borderColor}`;
+                    }
+                    return classes;
+                  };
+                  return (
+                    <tr key={item.id || index} className={theme.hoverBg}>
+                      <td className={getCellClasses()}><Typography variant="body" className={`font-normal ${theme.text}`}>{(item as any).product_id || '-'}</Typography></td>
+                      <td className={getCellClasses(false, 'left')}><Typography variant="body" className={`font-normal ${theme.text}`}>{(item as any).description || '-'}</Typography></td>
+                      <td className={getCellClasses()}><Typography variant="body" className={`font-semibold ${theme.text}`}>{(item as any).stock_on_hand !== undefined ? Number((item as any).stock_on_hand).toLocaleString() : '-'}</Typography></td>
+                      <td className={getCellClasses()}><Typography variant="body" className={`font-normal ${theme.text}`}>{(item as any).default_uom || '-'}</Typography></td>
+                      <td className={getCellClasses()}><Typography variant="body" className={`font-normal ${theme.text}`}>{(item as any).locations || '-'}</Typography></td>
+                      <td className={getCellClasses()}><Typography variant="body" className={`font-normal ${theme.text}`}>{(item as any).ean || '-'}</Typography></td>
+                      <td className={getCellClasses()}><Typography variant="body" className={`font-normal ${theme.text}`}>{(item as any).weight_kg !== undefined ? Number((item as any).weight_kg).toFixed(2) : '-'}</Typography></td>
+                      <td className={getCellClasses(true)}><Typography variant="body" className={`font-normal ${theme.text}`}>{(item as any).volume_m3 !== undefined ? Number((item as any).volume_m3).toFixed(3) : '-'}</Typography></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
+        </CardBody>
+      ) : (
+        <div className="p-8 text-center">
+          <Typography color="gray" className={theme.text}>
+            {searchQuery ? `No SOH data found for "${searchQuery}"` : "No SOH data found. Import some data to get started."}
+          </Typography>
+        </div>
+      )}
 
-        {sohData.length > 100 && (
-          <div className={`px-6 py-3 border-t ${theme.borderColor} text-center`}>
-            <Typography variant="small" className={`${theme.text} opacity-80`}>
-              Showing first 100 of {sohData.length} records
-            </Typography>
-          </div>
-        )}
-      </Card>
-      <ConfirmationDialog 
-        open={isDeleteConfirmOpen} 
-        handleOpen={() => setIsDeleteConfirmOpen(false)} 
-        onConfirm={handleConfirmDelete} 
-        title="Delete All SOH Data?" 
-        message="Are you sure you want to permanently delete ALL stock on hand data? This action cannot be undone."
-      />
-    </>
-  );
+      {/* This block is no longer needed if the backend limits results. If you want to keep it, it should be adjusted. */}
+      {/* {sohData.length > 100 && ( ... )} */}
+
+    </Card>
+    <ConfirmationDialog 
+      open={isDeleteConfirmOpen} 
+      handleOpen={() => setIsDeleteConfirmOpen(false)} 
+      onConfirm={handleConfirmDelete} 
+      title="Delete All SOH Data?" 
+      message="Are you sure you want to permanently delete ALL stock on hand data? This action cannot be undone."
+    />
+  </>
+);
 }
 
 // BLOCK 9: Export
