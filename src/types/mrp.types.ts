@@ -36,15 +36,16 @@ export interface Forecast {
 
 // BLOCK 2: Product Interface
 export interface Product {
-  id: string;
-  productCode: string;
-  description: string;
-  components: BomComponent[];
-  unitsPerShipper?: number;
-  dailyRunRate?: number;
-  hourlyRunRate?: number;
-  minsPerShipper?: number;
-  pricePerShipper?: number;
+    id: string;
+      product_code: string;
+        description: string;
+          components: BomComponent[];
+            unitsPerShipper?: number;
+              dailyRunRate?: number;
+                hourlyRunRate?: number;
+                  minsPerShipper?: number;
+                    pricePerShipper?: number;
+                    
 }
 
 // Purchase Order Structure

@@ -21,18 +21,20 @@ dotenv_1.default.config();
 // BLOCK 2: App Configuration
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 3001;
-// CORS configuration - updated for production
-const corsOrigins = [
-    process.env.CORS_ORIGIN,
-    'http://localhost:5173',
-    'http://localhost:3000',
-    // Add your Gitpod frontend URL as backup
-    'https://cuddly-waddle-5g994xrv59w6cvqqw-5173.app.github.dev'
-].filter(Boolean);
-app.use((0, cors_1.default)({
-    origin: corsOrigins,
-    credentials: true
-}));
+// CORS configuration - simplified for debugging
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://cuddly-waddle-5g994xrv59w6cvqqw-5173.app.github.dev');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 app.use(express_1.default.json());
 // Trust proxy for Railway
 app.set('trust proxy', 1);

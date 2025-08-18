@@ -45,167 +45,162 @@ class MrpService {
    * BLOCK 3.1: The main MRP calculation engine.
    * This is the core logic that processes demand against supply.
    */
-  calculateInventoryProjections(
-    components: Component[],
-    products: Product[],
-    forecasts: Forecast[]
-  ): InventoryProjection[] {
-    console.log('🔄 Starting MRP calculations...');
+// BLOCK 3.1: The main MRP calculation engine.
+calculateInventoryProjections(
+  components: Component[],
+  products: Product[],
+  forecasts: Forecast[]
+): InventoryProjection[] {
+  console.log('🔄 Starting MRP calculations...');
 
-    const componentMasterMap = new Map<
-      string,
-      {
-        demand: { [month: string]: number };
-        skus: Set<string>;
-        partTypes: Set<string>;
-        descriptions: Set<string>;
-      }
-    >();
+  const sohMap = new Map<string, Component>();
+  components.forEach(component => {
+    sohMap.set(component.partCode, component);
+  });
 
-    products.forEach((product) => {
-      const forecast = forecasts.find(
-        (f) => f.productCode === product.productCode
-      );
-      if (!forecast) return;
+  const componentMasterMap = new Map<string, {
+    demand: { [month: string]: number };
+    skus: Set<string>;
+    partTypes: Set<string>;
+    descriptions: Set<string>;
+  }>();
 
-      const unitsPerShipper = product.unitsPerShipper || 0;
-      if (unitsPerShipper === 0) return;
-
-      product.components.forEach((bomItem) => {
-        if (bomItem.partType === "Bulk - Supplied") return;
-        
-        if (!componentMasterMap.has(bomItem.partCode)) {
-          componentMasterMap.set(bomItem.partCode, {
-            demand: {},
-            skus: new Set(),
-            partTypes: new Set(),
-            descriptions: new Set(),
-          });
-        }
-        
-        const componentData = componentMasterMap.get(bomItem.partCode)!;
-        componentData.skus.add(product.productCode);
-        componentData.partTypes.add(bomItem.partType);
-        componentData.descriptions.add(bomItem.partDescription);
-
-        for (const month in forecast.monthlyForecast) {
-          const forecastQtyInShippers = forecast.monthlyForecast[month];
-          const requiredComponents = forecastQtyInShippers * bomItem.perShipper;
-
-          componentData.demand[month] =
-            (componentData.demand[month] || 0) + requiredComponents;
-        }
-      });
-    });
-
-    const inventoryProjections: InventoryProjection[] = [];
-
-    components.forEach((component) => {
-      const componentData = componentMasterMap.get(component.partCode);
-      if (!componentData) return;
-
-      let currentSoh = component.stock;
-      const sortedMonths = Object.keys(componentData.demand).sort();
-
-      const fourMonthDemand = sortedMonths
-        .slice(0, 4)
-        .reduce((sum, month) => sum + (componentData.demand[month] || 0), 0);
-      
-      const totalAnnualDemand = Object.values(componentData.demand)
-        .reduce((sum, demand) => sum + demand, 0);
-      
-      const averageMonthlyDemand = sortedMonths.length > 0 
-        ? totalAnnualDemand / sortedMonths.length 
-        : 0;
-
-      const netFourMonthDemand = Math.max(0, fourMonthDemand - currentSoh);
-
-      let overallHealth: "Healthy" | "Risk" | "Shortage";
-      let priority: "High" | "Medium" | "Low";
-      let recommendedAction: string;
-
-      if (currentSoh >= fourMonthDemand) {
-        overallHealth = "Healthy";
-        priority = "Low";
-        recommendedAction = "Monitor stock levels";
-      } else if (currentSoh > averageMonthlyDemand) {
-        overallHealth = "Risk";
-        priority = "Medium";
-        recommendedAction = `Order ${Math.ceil(netFourMonthDemand)} units`;
-      } else {
-        overallHealth = "Shortage";
-        priority = "High";
-        recommendedAction = `URGENT: Order ${Math.ceil(netFourMonthDemand)} units immediately`;
-      }
-
-      const projections: MonthlyProjection[] = sortedMonths.map((month) => {
-        const demand = componentData.demand[month];
-        const coveragePercentage = demand > 0 ? Math.min(1, currentSoh / demand) * 100 : 100;
-        const projectedSoh = Math.max(0, currentSoh - demand);
-        const shortfall = Math.max(0, demand - currentSoh);
-        
-        const dailyDemand = demand / 30;
-        const daysOfCoverage = dailyDemand > 0 ? Math.floor(currentSoh / dailyDemand) : 30;
-        
-        currentSoh = projectedSoh;
-        
-        return { 
-          month, 
-          totalDemand: Math.round(demand * 100) / 100, 
-          coveragePercentage: Math.round(coveragePercentage * 100) / 100, 
-          projectedSoh: Math.round(projectedSoh * 100) / 100,
-          shortfall: Math.round(shortfall * 100) / 100,
-          daysOfCoverage: Math.min(daysOfCoverage, 30)
-        };
-      });
-
-      inventoryProjections.push({
-        component,
-        skusUsedIn: Array.from(componentData.skus),
-        displayPartType: Array.from(componentData.partTypes)[0] || "N/A",
-        displayDescription: Array.from(componentData.descriptions)[0] || "N/A",
-        netFourMonthDemand: Math.round(netFourMonthDemand * 100) / 100,
-        projections,
-        overallHealth,
-        recommendedAction,
-        priority,
-        totalAnnualDemand: Math.round(totalAnnualDemand * 100) / 100,
-        averageMonthlyDemand: Math.round(averageMonthlyDemand * 100) / 100
-      });
-    });
-
-    console.log(`✅ MRP calculations completed for ${inventoryProjections.length} components`);
-    return inventoryProjections;
-  }
-
-  /**
-   * BLOCK 3.2: Orchestration method to run a complete analysis. (UPDATED)
-   * Fetches all required data from various services and executes the calculation.
-   */
-  async runCompleteAnalysis(): Promise<InventoryProjection[]> {
-    try {
-      console.log('🔄 Starting complete MRP analysis...');
-
-      // Fetch all data sources in parallel for efficiency.
-      const [components, products, forecasts] = await Promise.all([
-        inventoryService.getAllSoh(),
-        productService.getAllProducts(),
-        // MODIFIED: Use the new method to get calculation-friendly data.
-        forecastService.getRawForecasts() 
-      ]);
-
-      console.log(`📊 Data fetched: ${components.length} components, ${products.length} products, ${forecasts.length} forecasts`);
-
-      // Run the MRP calculation with the fetched data.
-      const projections = this.calculateInventoryProjections(components, products, forecasts);
-
-      console.log('✅ Complete MRP analysis finished');
-      return projections;
-    } catch (error) {
-      console.error('❌ Error in complete MRP analysis:', error);
-      throw new Error(handleApiError(error));
+  // THIS IS THE FIX: The logic has been fundamentally corrected.
+  // We iterate through all products that have a forecast and a BOM.
+  products.forEach((product) => {
+    const forecast = forecasts.find((f) => f.productCode === product.product_code);
+    if (!forecast || !product.components || product.components.length === 0) {
+      return; // Skip products without a forecast or BOM
     }
+
+    // For each component in this product's BOM...
+    product.components.forEach((bomItem) => {
+      // Get the existing data for this component, or initialize it if it's the first time we've seen it.
+      if (!componentMasterMap.has(bomItem.partCode)) {
+        componentMasterMap.set(bomItem.partCode, {
+          demand: {}, skus: new Set(), partTypes: new Set(), descriptions: new Set(),
+        });
+      }
+      const componentData = componentMasterMap.get(bomItem.partCode)!;
+
+      // Add this product's SKU to the list of SKUs that use this component.
+      componentData.skus.add(product.product_code);
+      componentData.partTypes.add(bomItem.partType);
+      componentData.descriptions.add(bomItem.partDescription);
+
+      // Now, add the demand from this product's forecast to the component's total demand.
+      for (const month in forecast.monthlyForecast) {
+        const forecastQty = forecast.monthlyForecast[month];
+        const requiredComponents = forecastQty * bomItem.perShipper;
+        // This correctly ADDS the demand from this product to any existing demand from other products.
+        componentData.demand[month] = (componentData.demand[month] || 0) + requiredComponents;
+      }
+    });
+  });
+
+  console.log(`DIAGNOSTIC: Final componentMasterMap size is ${componentMasterMap.size}.`);
+  
+  const inventoryProjections: InventoryProjection[] = [];
+
+  componentMasterMap.forEach((componentData, partCode) => {
+    const sohComponent = sohMap.get(partCode);
+    const componentForProjection: Component = sohComponent || {
+      id: partCode,
+      partCode: partCode,
+      description: Array.from(componentData.descriptions)[0] || "N/A",
+      stock: 0,
+      safetyStock: 0,
+      partType: Array.from(componentData.partTypes)[0] || "N/A",
+    };
+
+    let currentSoh = componentForProjection.stock;
+    const sortedMonths = Object.keys(componentData.demand).sort();
+
+    const fourMonthDemand = sortedMonths.slice(0, 4).reduce((sum, month) => sum + (componentData.demand[month] || 0), 0);
+    const totalAnnualDemand = Object.values(componentData.demand).reduce((sum, demand) => sum + demand, 0);
+    const averageMonthlyDemand = sortedMonths.length > 0 ? totalAnnualDemand / sortedMonths.length : 0;
+    const netFourMonthDemand = Math.max(0, fourMonthDemand - currentSoh);
+
+    let overallHealth: "Healthy" | "Risk" | "Shortage";
+    if (currentSoh >= fourMonthDemand) overallHealth = "Healthy";
+    else if (currentSoh > averageMonthlyDemand) overallHealth = "Risk";
+    else overallHealth = "Shortage";
+
+    const projections: MonthlyProjection[] = sortedMonths.map((month) => {
+      const demand = componentData.demand[month];
+      const coveragePercentage = demand > 0 ? Math.min(1, currentSoh / demand) * 100 : 100;
+      const projectedSoh = Math.max(0, currentSoh - demand);
+      const shortfall = Math.max(0, demand - currentSoh);
+      const dailyDemand = demand / 30;
+      const daysOfCoverage = dailyDemand > 0 ? Math.floor(currentSoh / dailyDemand) : 30;
+      currentSoh = projectedSoh;
+      
+      return { month, totalDemand: demand, coveragePercentage, projectedSoh, shortfall, daysOfCoverage };
+    });
+
+    inventoryProjections.push({
+      component: componentForProjection,
+      skusUsedIn: Array.from(componentData.skus),
+      displayPartType: Array.from(componentData.partTypes)[0] || "N/A",
+      displayDescription: Array.from(componentData.descriptions)[0] || "N/A",
+      netFourMonthDemand,
+      projections,
+      overallHealth,
+      priority: overallHealth === "Shortage" ? "High" : overallHealth === "Risk" ? "Medium" : "Low",
+      recommendedAction: overallHealth === "Healthy" ? "Monitor stock" : `Order ${Math.ceil(netFourMonthDemand)} units`,
+      totalAnnualDemand,
+      averageMonthlyDemand,
+    });
+  });
+
+  console.log(`✅ MRP calculations completed for ${inventoryProjections.length} components`);
+  return inventoryProjections;
+}
+// BLOCK 3.2: Orchestration method to run a complete analysis.
+async runCompleteAnalysis(): Promise<InventoryProjection[]> {
+  try {
+    console.log('🔄 Starting complete MRP analysis...');
+
+    const [
+      sohComponents, 
+      products, 
+      forecasts, 
+      allBomComponents
+    ] = await Promise.all([
+      inventoryService.getAllSoh(),
+      productService.getAllProducts(),
+      forecastService.getRawForecasts(),
+      productService.getAllBomComponents()
+    ]);
+
+    let totalBomsAttached = 0;
+    const productsWithBoms: Product[] = products.map(product => {
+      const bomForThisProduct = allBomComponents.filter(
+        bom => bom.product_id === product.id
+      );
+      if (bomForThisProduct.length > 0) {
+        totalBomsAttached += bomForThisProduct.length;
+      }
+      return {
+        ...product,
+        components: bomForThisProduct
+      };
+    });
+    
+    // This is the new diagnostic log.
+    console.log(`DIAGNOSTIC: Attached a total of ${totalBomsAttached} BOM components across ${products.length} products.`);
+
+    console.log(`📊 MRP Engine Inputs: SOH Components=${sohComponents.length}, Products with BOMs=${productsWithBoms.length}, Forecasts=${forecasts.length}`);
+
+    const projections = this.calculateInventoryProjections(sohComponents, productsWithBoms, forecasts);
+
+    console.log('✅ Complete MRP analysis finished');
+    return projections;
+  } catch (error) {
+    console.error('❌ Error in complete MRP analysis:', error);
+    throw new Error(handleApiError(error));
   }
+}
 
   /**
    * BLOCK 3.3: Utility and Reporting methods.

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import Joi from 'joi';
-import { getAllProducts, getBomForProduct, getEnrichedBom } from '../controllers/product.controller';
+import { getAllProducts, getEnrichedBom, getBomForProduct, getAllBomComponents } from '../controllers/product.controller';
 import { validateParams } from '../middleware/validation';
 import { asyncHandler } from '../utils/asyncHandler';
 
@@ -16,5 +16,6 @@ const productParamsSchema = Joi.object({
 router.get('/', asyncHandler(getAllProducts));
 router.get('/:productId/bom', validateParams(productParamsSchema), asyncHandler(getBomForProduct));
 router.get('/:productId/enriched-bom', asyncHandler(getEnrichedBom));
+router.get('/boms/all', asyncHandler(getAllBomComponents));
 
 export default router;

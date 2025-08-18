@@ -113,3 +113,21 @@ export const getBomForProduct = asyncHandler(async (req: Request, res: Response)
     data: bom || [],
   });
 });
+// BLOCK 5: Get All BOM Components Controller
+export const getAllBomComponents = asyncHandler(async (req: Request, res: Response) => {
+  logger.info('Fetching all BOM components for MRP engine');
+
+  const { data, error } = await supabase
+    .from('bom_components')
+    .select('*');
+
+  if (error) {
+    logger.error('Supabase error fetching all BOM components', { error });
+    throw createError('Failed to fetch BOM components', 500);
+  }
+
+  res.status(200).json({
+    success: true,
+    data: data || [],
+  });
+});
