@@ -128,106 +128,106 @@ export function InventoryPage() {
   )];
 
   // BLOCK 7: Render Logic
-  return (
-    <div className="space-y-6">
-      <Card className={`w-full ${theme.cards} shadow-sm`}>
-        <div className={`p-4`}>
-          <Typography variant="h5" className={theme.text}>Inventory Planning Dashboard</Typography>
-          <Typography color="gray" className={`mt-1 font-normal ${theme.text} opacity-80`}>
-            Analyze component demand, stock levels, and potential shortages.
-          </Typography>
-        </div>
-      </Card>
+return (
+  <div className="space-y-6">
+    <Card className={`w-full ${theme.cards} shadow-sm`}>
+      <div className={`p-4`}>
+        <Typography variant="h5" className={theme.text}>Inventory Planning Dashboard</Typography>
+        <Typography color="gray" className={`mt-1 font-normal ${theme.text} opacity-80`}>
+          Analyze component demand, stock levels, and potential shortages.
+        </Typography>
+      </div>
+    </Card>
 
-      {loading ? (
-        <div className="flex justify-center items-center h-24"><Spinner /></div>
-      ) : summary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Total Components" value={summary.totalComponents} theme={theme} />
-          <StatCard title="Healthy" value={summary.healthyCount} colorClass="text-green-500" theme={theme} />
-          <StatCard title="At Risk" value={summary.riskCount} colorClass="text-yellow-600" theme={theme} />
-          <StatCard title="Shortage" value={summary.shortageCount} colorClass="text-red-500" theme={theme} />
-        </div>
-      )}
+    {loading ? (
+      <div className="flex justify-center items-center h-24"><Spinner /></div>
+    ) : summary && (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Total Components" value={summary.totalComponents} theme={theme} />
+        <StatCard title="Healthy" value={summary.healthyCount} colorClass="text-green-500" theme={theme} />
+        <StatCard title="At Risk" value={summary.riskCount} colorClass="text-yellow-600" theme={theme} />
+        <StatCard title="Shortage" value={summary.shortageCount} colorClass="text-red-500" theme={theme} />
+      </div>
+    )}
 
-      <Card className={`w-full ${theme.cards} shadow-sm`}>
-        <div className={`flex flex-wrap items-center justify-between gap-4 p-4 border-b ${theme.borderColor}`}>
-          <div className="w-full sm:w-72">
-            <Input
-              label="Search by Part Code, Description, or SKU"
-              icon={<MagnifyingGlassIcon className="h-5 w-5" />}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              color={theme.isDark ? "white" : "black"}
-            />
-          </div>
-          <ButtonGroup variant="outlined">
-            {(["All", "Shortage", "Risk", "Healthy"] as const).map(filter => (
-              <Button
-                key={filter}
-                onClick={() => setHealthFilter(filter)}
-                className={healthFilter === filter ? "bg-gray-200 dark:bg-gray-700" : ""}
-              >
-                {filter}
-              </Button>
-            ))}
-          </ButtonGroup>
+    <Card className={`w-full ${theme.cards} shadow-sm`}>
+      <div className={`flex flex-wrap items-center justify-between gap-4 p-4 border-b ${theme.borderColor}`}>
+        <div className="w-full sm:w-72">
+          <Input
+            label="Search by Part Code, Description, or SKU"
+            icon={<MagnifyingGlassIcon className="h-5 w-5" />}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            color={theme.isDark ? "white" : "black"}
+          />
         </div>
+        <ButtonGroup variant="outlined">
+          {(["All", "Shortage", "Risk", "Healthy"] as const).map(filter => (
+            <Button
+              key={filter}
+              onClick={() => setHealthFilter(filter)}
+              className={healthFilter === filter ? "bg-gray-200 dark:bg-gray-700" : ""}
+            >
+              {filter}
+            </Button>
+          ))}
+        </ButtonGroup>
+      </div>
 
-        <CardBody className="overflow-x-auto p-0">
-          {loading ? (
-            <div className="flex justify-center items-center h-96"><Spinner /></div>
-          ) : (
-            <div className={`border-2 ${theme.borderColor} rounded-lg m-4`}>
-              <table className="min-w-max w-full table-auto text-left">
-                <thead className={`border-b-2 ${theme.borderColor}`}>
-                  <tr>
-                    {TABLE_HEAD.map(head => (
-                      <th key={head} className={`p-2 text-center border-r ${theme.borderColor} ${theme.tableHeaderBg}`}>
-                        <Typography variant="small" className={`font-semibold ${theme.text}`}>{head}</Typography>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProjections.map((p) => (
-                    <tr key={p.component.id} className={theme.hoverBg}>
-                      <td className={`p-2 border-b border-r ${theme.borderColor} align-top`}>
-                        <Typography variant="small" className={`font-bold ${theme.text}`}>{p.component.partCode}</Typography>
-                        <Typography variant="small" className={`${theme.text} opacity-80`}>{p.displayDescription}</Typography>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {p.skusUsedIn.map(sku => <Chip key={sku} value={sku} className="text-xs" />)}
-                        </div>
-                      </td>
-                      <td className={`p-2 border-b border-r ${theme.borderColor} text-center align-middle`}>
-                        <Chip value={p.overallHealth} color={getHealthChipColor(p.overallHealth)} />
-                      </td>
-                      <td className={`p-2 border-b border-r ${theme.borderColor} text-center align-middle`}>
-                        <Typography variant="small" className={`font-semibold ${theme.text}`}>
-                          {typeof p.component.stock === 'number' ? p.component.stock.toLocaleString() : '-'}
-                        </Typography>
-                      </td>
-                      {monthHeaders.map(dateKey => {
-                        const projectionForMonth = p.projections.find(proj => proj.month === dateKey);
-                        return (
-                          <td key={`${p.component.id}-${dateKey}`} className={`p-0 border-b border-r ${theme.borderColor} align-top`}>
-                            <MonthlyProjectionCell projection={projectionForMonth} theme={theme} />
-                          </td>
-                        );
-                      })}
-                    </tr>
+      <CardBody className="overflow-x-auto p-0">
+        {loading ? (
+          <div className="flex justify-center items-center h-96"><Spinner /></div>
+        ) : (
+          <div className={`border-2 ${theme.borderColor} rounded-lg m-4`}>
+            <table className="min-w-max w-full table-auto text-left">
+              <thead className={`border-b-2 ${theme.borderColor}`}>
+                <tr>
+                  {TABLE_HEAD.map(head => (
+                    <th key={head} className={`p-2 text-center border-r ${theme.borderColor} ${theme.tableHeaderBg}`}>
+                      <Typography variant="small" className={`font-semibold ${theme.text}`}>{head}</Typography>
+                    </th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {filteredProjections.length === 0 && !loading && (
-            <div className="text-center p-8">
-              <Typography color="gray" className={theme.text}>No projections match the current filters.</Typography>
-            </div>
-          )}
-        </CardBody>
-      </Card>
-    </div>
-  );
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProjections.map((p, index) => (
+                  <tr key={`${p.component.partCode}-${index}`} className={theme.hoverBg}>
+                    <td className={`p-2 border-b border-r ${theme.borderColor} align-top`}>
+                      <Typography variant="small" className={`font-bold ${theme.text}`}>{p.component.partCode}</Typography>
+                      <Typography variant="small" className={`${theme.text} opacity-80`}>{p.displayDescription}</Typography>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {p.skusUsedIn.map((sku, skuIndex) => <Chip key={`${sku}-${skuIndex}`} value={sku} className="text-xs" />)}
+                      </div>
+                    </td>
+                    <td className={`p-2 border-b border-r ${theme.borderColor} text-center align-middle`}>
+                      <Chip value={p.overallHealth} color={getHealthChipColor(p.overallHealth)} />
+                    </td>
+                    <td className={`p-2 border-b border-r ${theme.borderColor} text-center align-middle`}>
+                      <Typography variant="small" className={`font-semibold ${theme.text}`}>
+                        {typeof p.component.stock === 'number' ? p.component.stock.toLocaleString() : '-'}
+                      </Typography>
+                    </td>
+                    {monthHeaders.map((dateKey, monthIndex) => {
+                      const projectionForMonth = p.projections.find(proj => proj.month === dateKey);
+                      return (
+                        <td key={`${p.component.partCode}-${dateKey}-${monthIndex}`} className={`p-0 border-b border-r ${theme.borderColor} align-top`}>
+                          <MonthlyProjectionCell projection={projectionForMonth} theme={theme} />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {filteredProjections.length === 0 && !loading && (
+          <div className="text-center p-8">
+            <Typography color="gray" className={theme.text}>No projections match the current filters.</Typography>
+          </div>
+        )}
+      </CardBody>
+    </Card>
+  </div>
+);
 }

@@ -30,8 +30,19 @@ const updatePoSchema = joi_1.default.object({
     orderedQtyPieces: joi_1.default.number().positive().optional(),
     customerAmount: joi_1.default.number().positive().optional()
 });
-const statusUpdateSchema = joi_1.default.object({
-    status: joi_1.default.string().valid('Open', 'In Progress', 'Completed', 'Cancelled').required()
+const statusUpdateSchema = joi.object({
+    status: joi.string().valid(
+        'Open', 
+        'Wip Called', 
+        'Packaging Called', 
+        'PO Check', 
+        'In WH Ready', 
+        'In Production', 
+        'Awaiting QA Release', 
+        'Ready for Despatch', 
+        'Despatched/ Completed', 
+        'PO Canceled'
+    ).required()
 });
 const querySchema = joi_1.default.object({
     page: joi_1.default.number().integer().min(1).optional(),

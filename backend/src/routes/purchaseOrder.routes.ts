@@ -6,7 +6,8 @@ import {
   createPurchaseOrder, 
   updatePurchaseOrder, 
   updatePoStatus, 
-  deletePurchaseOrder 
+  deletePurchaseOrder,
+  despatchPurchaseOrder 
 } from '../controllers/purchaseOrder.controller';
 import { validateRequest, validateParams, validateQuery } from '../middleware/validation';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -38,7 +39,18 @@ const updatePoSchema = Joi.object({
 });
 
 const statusUpdateSchema = Joi.object({
-  status: Joi.string().valid('Open', 'In Progress', 'Completed', 'Cancelled').required()
+    status: Joi.string().valid(
+        'Open', 
+        'Wip Called', 
+        'Packaging Called', 
+        'PO Check', 
+        'In WH Ready', 
+        'In Production', 
+        'Awaiting QA Release', 
+        'Ready for Despatch', 
+        'Despatched/ Completed', 
+        'PO Canceled'
+    ).required()
 });
 
 const querySchema = Joi.object({
@@ -49,6 +61,13 @@ const querySchema = Joi.object({
   sort_direction: Joi.string().valid('asc', 'desc').optional()
 });
 
+// Add this validation schema with the other schemas
+const despatchSchema = Joi.object({
+  deliveryDate: Joi.date().iso().required(),
+  docketNumber: Joi.string().required(),
+  status: Joi.string().valid('Despatched/ Completed').optional()
+});
+
 // Routes with async handling
 router.get('/', validateQuery(querySchema), asyncHandler(getPurchaseOrders));
 router.post('/', validateRequest(createPoSchema), asyncHandler(createPurchaseOrder));
@@ -56,5 +75,6 @@ router.get('/:poId', validateParams(poParamsSchema), asyncHandler(getPurchaseOrd
 router.patch('/:poId', validateParams(poParamsSchema), validateRequest(updatePoSchema), asyncHandler(updatePurchaseOrder));
 router.patch('/:poId/status', validateParams(poParamsSchema), validateRequest(statusUpdateSchema), asyncHandler(updatePoStatus));
 router.delete('/:poId', validateParams(poParamsSchema), asyncHandler(deletePurchaseOrder));
+router.patch('/:poId/despatch', validateParams(poParamsSchema), validateRequest(despatchSchema), asyncHandler(despatchPurchaseOrder));
 
 export default router;

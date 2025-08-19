@@ -281,3 +281,93 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const despatchPurchaseOrder = async (req: Request, res: Response) => {
+  try {
+    const { poId } = req.params;
+    const { deliveryDate, docketNumber } = req.body;
+    
+    logger.info('Despatching purchase order', { poId, deliveryDate, docketNumber });
+
+    // Update the PO with dispatch details AND current_status
+    const { data: updatedPo, error: updateError } = await supabase
+      .from('purchase_orders')
+      .update({
+        delivery_date: deliveryDate,
+        delivery_docket_number: docketNumber,
+        current_status: 'Despatched/ Completed', // ADD THIS LINE
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', poId)
+      .select()
+      .single();
+
+    if (updateError) {
+      logger.error('Error updating PO with dispatch details', { updateError, poId });
+      throw createError('Failed to update purchase order with dispatch details', 500);
+    }
+
+    logger.info('PO updated with dispatch details successfully', { poId });
+
+    // Clear all existing statuses
+    const { error: deleteStatusError } = await supabase
+      .from('po_status_history')
+      .delete()
+      .eq('po_id', poId);
+
+    if (deleteStatusError) {
+      logger.error('Error clearing PO statuses', { deleteStatusError, poId });
+      throw createError('Failed to clear existing statuses', 500);
+    }
+
+    logger.info('Existing statuses cleared successfully', { poId });
+
+    // Add the 'Despatched/ Completed' status
+    const { data: newStatus, error: insertStatusError } = await supabase
+      .from('po_status_history')
+      .insert({
+        po_id: poId,
+        status: 'Despatched/ Completed',
+        created_at: new Date().toISOString()
+      })
+      .select();
+
+    if (insertStatusError) {
+      logger.error('Error adding dispatch status', { insertStatusError, poId });
+      throw createError('Failed to add dispatch status', 500);
+    }
+
+    logger.info('Dispatch status added successfully', { poId, newStatus });
+
+    // Fetch the complete updated PO with all relations
+    const { data: completePo, error: fetchError } = await supabase
+      .from('purchase_orders')
+      .select(`
+        *, 
+        product:products(*), 
+        statuses:po_status_history(status)
+      `)
+      .eq('id', poId)
+      .single();
+    
+    if (fetchError) {
+      logger.error('Error fetching despatched purchase order', { fetchError, poId });
+      throw createError('Purchase order despatched but failed to fetch details', 500);
+    }
+
+    logger.info('Final PO data after dispatch', { poId, completePo });
+
+    res.status(200).json({
+      success: true,
+      data: completePo,
+      message: 'Purchase order despatched successfully'
+    });
+
+  } catch (error: any) {
+    logger.error('Error in despatchPurchaseOrder', { error: error.message, poId: req.params.poId });
+    res.status(error.statusCode || 500).json({ 
+      success: false,
+      message: error.message || 'Failed to despatch purchase order'
+    });
+  }
+};

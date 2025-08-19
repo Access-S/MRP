@@ -16,16 +16,17 @@ class InventoryService {
     try {
       // Build the endpoint URL with the search parameter if it exists.
       const params = new URLSearchParams({ search });
-      const endpoint = `/soh?${params.toString()}`;
+      const endpoint = `/api/soh?${params.toString()}`;
       
-      const response: ApiResponse<Component[]> = await apiClient.get(endpoint);
+      const response = await fetch(endpoint);
+      const result = await response.json();
       
-      if (response.success && response.data) {
-        console.log(`✅ Fetched ${response.data.length} SOH records from API for search: "${search}"`);
-        return response.data;
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to fetch SOH records');
       }
       
-      throw new Error('Failed to fetch SOH records');
+      console.log(`✅ Fetched ${result.data.length} SOH records from API for search: "${search}"`);
+      return result.data || [];
     } catch (error) {
       console.error('❌ Error fetching SOH records:', error);
       throw new Error(handleApiError(error));
@@ -289,7 +290,6 @@ class InventoryService {
     }
   }
 }
-
 // BLOCK 3: Export Singleton Instance
 export const inventoryService = new InventoryService();
 

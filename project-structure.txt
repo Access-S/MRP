@@ -14,6 +14,7 @@
 │   │   ├── config
 │   │   │   └── supabase.ts
 │   │   ├── controllers
+│   │   │   ├── forecast.controller.ts
 │   │   │   ├── product.controller.ts
 │   │   │   ├── purchaseOrder.controller.ts
 │   │   │   └── soh.controller.ts
@@ -21,6 +22,7 @@
 │   │   │   ├── errorHandler.ts
 │   │   │   └── validation.ts
 │   │   ├── routes
+│   │   │   ├── forecast.routes.ts
 │   │   │   ├── product.routes.ts
 │   │   │   ├── purchaseOrder.routes.ts
 │   │   │   └── soh.routes.ts
@@ -84,4 +86,4 @@
 ├── tsconfig.node.json
 └── vite.config.ts
 
-22 directories, 63 files
+22 directories, 65 files

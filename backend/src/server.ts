@@ -21,25 +21,47 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// CORS configuration - updated for production
-const corsOrigins = [
-  process.env.CORS_ORIGIN,
-  'http://localhost:5173',
-  'http://localhost:3000',
-  // Add your Gitpod frontend URL as backup
-  'https://cuddly-waddle-5g994xrv59w6cvqqw-5173.app.github.dev'
-].filter(Boolean) as string[];
+// Bulletproof CORS configuration for Codespaces
+app.use((req, res, next) => {
+  // Get the origin from the request
+  const origin = req.headers.origin;
+  
+  // Allow any GitHub Codespaces origin or localhost
+  if (origin && (
+    origin.includes('.app.github.dev') || 
+    origin.includes('localhost') ||
+    origin.includes('127.0.0.1')
+  )) {
+    res.header('Access-Control-Allow-Origin', origin);
+  } else {
+    // Fallback to wildcard for development
+    res.header('Access-Control-Allow-Origin', '*');
+  }
+  
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // Cache preflight for 24 hours
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+    return;
+  }
+  
+  next();
+});
 
-app.use(cors({
-  origin: corsOrigins,
-  credentials: true
-}));
+// Add request logging to debug CORS issues
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
 
 app.use(express.json());
 
 // Trust proxy for Railway
 app.set('trust proxy', 1);
-
 // BLOCK 3: Health Check Routes
 app.get('/', (req, res) => {
   res.json({

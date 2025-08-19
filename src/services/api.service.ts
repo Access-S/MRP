@@ -187,7 +187,7 @@ export const updatePo = async (
 
 export const updatePurchaseOrderStatus = async (
   poId: string, 
-  status: 'Open' | 'In Progress' | 'Completed' | 'Cancelled'
+  status: string
 ): Promise<ApiResponse<{ statuses: string[] }>> => {
   if (!poId) {
     throw new Error('Purchase Order ID is required');
@@ -209,6 +209,29 @@ export const deletePo = async (poId: string): Promise<ApiResponse<void>> => {
   }
 
   return apiClient.delete<ApiResponse<void>>(`/purchase-orders/${poId}`);
+};
+
+export const despatchPurchaseOrder = async (
+  poId: string, 
+  deliveryDate: string, 
+  docketNumber: string
+): Promise<ApiResponse<PurchaseOrder>> => {
+  if (!poId) {
+    throw new Error('Purchase Order ID is required');
+  }
+  
+  if (!deliveryDate || !docketNumber) {
+    throw new Error('Delivery date and docket number are required');
+  }
+
+  return apiClient.patch<ApiResponse<PurchaseOrder>>(
+    `/purchase-orders/${poId}/despatch`, 
+    { 
+      deliveryDate, 
+      docketNumber,
+      status: 'Despatched/ Completed'
+    }
+  );
 };
 
 // BLOCK 7: Products API

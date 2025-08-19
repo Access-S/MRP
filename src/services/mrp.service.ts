@@ -53,10 +53,50 @@ calculateInventoryProjections(
 ): InventoryProjection[] {
   console.log('🔄 Starting MRP calculations...');
 
-  const sohMap = new Map<string, Component>();
-  components.forEach(component => {
-    sohMap.set(component.partCode, component);
+  console.log(`📊 Input validation:`, {
+    components: components.length,
+    products: products.length,
+    forecasts: forecasts.length
   });
+  
+  console.log(`📊 Sample product structure:`, products[0]);
+  console.log(`📊 Sample forecast structure:`, forecasts[0]);
+  console.log(`📊 Sample SOH component structure:`, components[0]);
+  
+  const productsWithComponents = products.filter(p => p.components && p.components.length > 0);
+  console.log(`📊 Products with components: ${productsWithComponents.length}/${products.length}`);
+  
+  const matchedProducts = products.filter(product => 
+    forecasts.some(forecast => forecast.productCode === product.product_code)
+  );
+  console.log(`📊 Products with matching forecasts: ${matchedProducts.length}/${products.length}`);
+
+  // DEBUG SOH MAPPING WITH DETAILED STOCK INFO
+  const sohMap = new Map<string, Component>();
+  components.forEach((component, index) => {
+    if (index < 3) {
+      console.log(`🔍 SOH component ${index} DETAILED:`, {
+        fullObject: component,
+        possibleStockFields: {
+          stock: component.stock,
+          quantity: component.quantity,
+          on_hand: component.on_hand,
+          current_stock: component.current_stock,
+          available_stock: component.available_stock
+        }
+      });
+    }
+    
+    const partCode = component.partCode || component.part_code || component.product_id || component.id;
+    if (partCode) {
+      sohMap.set(partCode, component);
+    } else {
+      console.warn(`⚠️ SOH component missing part code:`, component);
+    }
+  });
+  
+  console.log(`📊 SOH Map created with ${sohMap.size} entries`);
+  console.log(`📊 Sample SOH map keys:`, Array.from(sohMap.keys()).slice(0, 10));
 
   const componentMasterMap = new Map<string, {
     demand: { [month: string]: number };
@@ -65,45 +105,101 @@ calculateInventoryProjections(
     descriptions: Set<string>;
   }>();
 
-  // THIS IS THE FIX: The logic has been fundamentally corrected.
-  // We iterate through all products that have a forecast and a BOM.
-  products.forEach((product) => {
+  let processedProductCount = 0;
+  let skippedProductCount = 0;
+
+  products.forEach((product, productIndex) => {
     const forecast = forecasts.find((f) => f.productCode === product.product_code);
-    if (!forecast || !product.components || product.components.length === 0) {
-      return; // Skip products without a forecast or BOM
+    
+    if (!forecast) {
+      skippedProductCount++;
+      return;
+    }
+    
+    if (!product.components || product.components.length === 0) {
+      skippedProductCount++;
+      return;
     }
 
-    // For each component in this product's BOM...
-    product.components.forEach((bomItem) => {
-      // Get the existing data for this component, or initialize it if it's the first time we've seen it.
-      if (!componentMasterMap.has(bomItem.partCode)) {
-        componentMasterMap.set(bomItem.partCode, {
+    processedProductCount++;
+
+    product.components.forEach((bomItem, bomIndex) => {
+      const partCode = bomItem.part_code;
+      const perShipper = bomItem.per_shipper || 1;
+      const partType = bomItem.part_type || 'Unknown';
+      const partDescription = bomItem.part_description || 'No description';
+      
+      if (!partCode) {
+        console.warn(`⚠️ BOM item missing part_code:`, bomItem);
+        return;
+      }
+      
+      if (!componentMasterMap.has(partCode)) {
+        componentMasterMap.set(partCode, {
           demand: {}, skus: new Set(), partTypes: new Set(), descriptions: new Set(),
         });
       }
-      const componentData = componentMasterMap.get(bomItem.partCode)!;
-
-      // Add this product's SKU to the list of SKUs that use this component.
+      
+      const componentData = componentMasterMap.get(partCode)!;
       componentData.skus.add(product.product_code);
-      componentData.partTypes.add(bomItem.partType);
-      componentData.descriptions.add(bomItem.partDescription);
+      componentData.partTypes.add(partType);
+      componentData.descriptions.add(partDescription);
 
-      // Now, add the demand from this product's forecast to the component's total demand.
       for (const month in forecast.monthlyForecast) {
         const forecastQty = forecast.monthlyForecast[month];
-        const requiredComponents = forecastQty * bomItem.perShipper;
-        // This correctly ADDS the demand from this product to any existing demand from other products.
+        const requiredComponents = forecastQty * perShipper;
         componentData.demand[month] = (componentData.demand[month] || 0) + requiredComponents;
       }
     });
   });
 
+  console.log(`📊 FINAL SUMMARY:`);
+  console.log(`📊 Processed products: ${processedProductCount}`);
+  console.log(`📊 Skipped products: ${skippedProductCount}`);
+  console.log(`📊 Component map keys (first 10):`, Array.from(componentMasterMap.keys()).slice(0, 10));
   console.log(`DIAGNOSTIC: Final componentMasterMap size is ${componentMasterMap.size}.`);
-  
+
   const inventoryProjections: InventoryProjection[] = [];
+  let sohMatchCount = 0;
+  let sohMissCount = 0;
 
   componentMasterMap.forEach((componentData, partCode) => {
     const sohComponent = sohMap.get(partCode);
+    
+    if (sohComponent) {
+      sohMatchCount++;
+      if (sohMatchCount <= 5) {
+        console.log(`✅ SOH match found for ${partCode}:`, {
+          fullSOHObject: sohComponent,
+          stockValue: sohComponent.stock,
+          quantityValue: sohComponent.quantity,
+          onHandValue: sohComponent.on_hand,
+          currentStockValue: sohComponent.current_stock,
+          availableStockValue: sohComponent.available_stock
+        });
+      }
+    } else {
+      sohMissCount++;
+      if (sohMissCount <= 3) {
+        console.log(`❌ No SOH found for ${partCode}`);
+      }
+    }
+    
+    // TRY DIFFERENT POSSIBLE STOCK FIELD NAMES
+    let stockValue = 0;
+    if (sohComponent) {
+      stockValue = sohComponent.stock || 
+                   sohComponent.quantity || 
+                   sohComponent.on_hand || 
+                   sohComponent.current_stock || 
+                   sohComponent.available_stock || 
+                   0;
+      
+      if (sohMatchCount <= 5) {
+        console.log(`🔍 Final stock value for ${partCode}: ${stockValue}`);
+      }
+    }
+    
     const componentForProjection: Component = sohComponent || {
       id: partCode,
       partCode: partCode,
@@ -113,20 +209,28 @@ calculateInventoryProjections(
       partType: Array.from(componentData.partTypes)[0] || "N/A",
     };
 
-    let currentSoh = componentForProjection.stock;
+    // USE THE EXTRACTED STOCK VALUE
+    let currentSoh = stockValue;
     const sortedMonths = Object.keys(componentData.demand).sort();
 
-    const fourMonthDemand = sortedMonths.slice(0, 4).reduce((sum, month) => sum + (componentData.demand[month] || 0), 0);
+    const planningHorizonMonths = sortedMonths.slice(0, 4);
+    const fourMonthDemand = planningHorizonMonths.reduce((sum, month) => sum + (componentData.demand[month] || 0), 0);
+    
     const totalAnnualDemand = Object.values(componentData.demand).reduce((sum, demand) => sum + demand, 0);
-    const averageMonthlyDemand = sortedMonths.length > 0 ? totalAnnualDemand / sortedMonths.length : 0;
+    const averageMonthlyDemand = planningHorizonMonths.length > 0 ? fourMonthDemand / planningHorizonMonths.length : 0;
+    
     const netFourMonthDemand = Math.max(0, fourMonthDemand - currentSoh);
 
     let overallHealth: "Healthy" | "Risk" | "Shortage";
-    if (currentSoh >= fourMonthDemand) overallHealth = "Healthy";
-    else if (currentSoh > averageMonthlyDemand) overallHealth = "Risk";
-    else overallHealth = "Shortage";
+    if (currentSoh >= fourMonthDemand) {
+      overallHealth = "Healthy";
+    } else if (currentSoh >= (fourMonthDemand * 0.5)) {
+      overallHealth = "Risk";
+    } else {
+      overallHealth = "Shortage";
+    }
 
-    const projections: MonthlyProjection[] = sortedMonths.map((month) => {
+    const projections: MonthlyProjection[] = planningHorizonMonths.map((month) => {
       const demand = componentData.demand[month];
       const coveragePercentage = demand > 0 ? Math.min(1, currentSoh / demand) * 100 : 100;
       const projectedSoh = Math.max(0, currentSoh - demand);
@@ -137,6 +241,9 @@ calculateInventoryProjections(
       
       return { month, totalDemand: demand, coveragePercentage, projectedSoh, shortfall, daysOfCoverage };
     });
+
+    // MAKE SURE WE'RE USING THE CORRECT STOCK VALUE IN THE COMPONENT
+    componentForProjection.stock = stockValue;
 
     inventoryProjections.push({
       component: componentForProjection,
@@ -153,7 +260,10 @@ calculateInventoryProjections(
     });
   });
 
+  console.log(`📊 SOH Matching Results: ${sohMatchCount} matches, ${sohMissCount} misses out of ${componentMasterMap.size} components`);
   console.log(`✅ MRP calculations completed for ${inventoryProjections.length} components`);
+  console.log(`📊 Health distribution: Healthy=${inventoryProjections.filter(p => p.overallHealth === 'Healthy').length}, Risk=${inventoryProjections.filter(p => p.overallHealth === 'Risk').length}, Shortage=${inventoryProjections.filter(p => p.overallHealth === 'Shortage').length}`);
+  
   return inventoryProjections;
 }
 // BLOCK 3.2: Orchestration method to run a complete analysis.
